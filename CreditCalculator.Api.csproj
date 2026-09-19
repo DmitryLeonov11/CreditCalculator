@@ -15,4 +15,12 @@
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.24.2-preview.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Api.csproj живёт в корне репозитория, поэтому его дефолтный glob иначе подхватывает файлы соседних проектов (CreditCalculator.*, tests/). -->
+    <Compile Remove="CreditCalculator.*/**/*.cs" />
+    <Compile Remove="tests/**/*.cs" />
+    <None Remove="CreditCalculator.*/**/*" />
+    <None Remove="tests/**/*" />
+  </ItemGroup>
+
 </Project>
