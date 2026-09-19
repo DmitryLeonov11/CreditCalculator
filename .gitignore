@@ -361,4 +361,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Локальные настройки с реальными секретами (строки подключения, JWT-ключи и т.п.)
+appsettings.Production.json
+appsettings.*.local.json
+
 /docs
