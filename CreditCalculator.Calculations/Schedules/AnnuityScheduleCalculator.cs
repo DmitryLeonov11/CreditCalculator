@@ -1,4 +1,7 @@
-namespace CreditCalculator.Calculations;
+using CreditCalculator.Calculations.Models;
+using CreditCalculator.Calculations.Validation;
+
+namespace CreditCalculator.Calculations.Schedules;
 
 public static class AnnuityScheduleCalculator
 {

@@ -1,4 +1,4 @@
-namespace CreditCalculator.Calculations;
+namespace CreditCalculator.Calculations.Models;
 
 public sealed record PaymentScheduleItem(
     int Number,

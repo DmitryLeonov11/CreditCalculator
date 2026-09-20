@@ -1,3 +1,4 @@
+using CreditCalculator.Calculations.Schedules;
 using FluentAssertions;
 
 namespace CreditCalculator.Calculations.Tests;

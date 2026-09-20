@@ -1,4 +1,4 @@
-namespace CreditCalculator.Calculations;
+namespace CreditCalculator.Calculations.Validation;
 
 internal static class ScheduleInputValidator
 {
