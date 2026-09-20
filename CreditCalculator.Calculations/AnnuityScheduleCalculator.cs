@@ -4,6 +4,8 @@ public static class AnnuityScheduleCalculator
 {
     public static decimal CalculateMonthlyPayment(decimal principal, decimal annualRatePercent, int termMonths)
     {
+        ScheduleInputValidator.Validate(principal, annualRatePercent, termMonths);
+
         var monthlyRate = annualRatePercent / 12 / 100;
 
         if (monthlyRate == 0m)
@@ -15,6 +17,8 @@ public static class AnnuityScheduleCalculator
 
     public static PaymentScheduleResult BuildSchedule(decimal principal, decimal annualRatePercent, int termMonths, DateOnly firstPaymentDate)
     {
+        ScheduleInputValidator.Validate(principal, annualRatePercent, termMonths);
+
         var monthlyRate = annualRatePercent / 12 / 100;
         var payment = CalculateMonthlyPayment(principal, annualRatePercent, termMonths);
 
