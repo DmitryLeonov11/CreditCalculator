@@ -45,4 +45,16 @@ public class DifferentiatedScheduleCalculatorTests
 
         result.Payments.Should().OnlyContain(item => item.RemainingBalance >= 0m);
     }
+
+    [Fact]
+    public void BuildSchedule_OneMonthTerm_SinglePaymentEqualsPrincipalPlusInterest()
+    {
+        var result = DifferentiatedScheduleCalculator.BuildSchedule(10000m, 12m, 1, new DateOnly(2026, 1, 1));
+
+        result.Payments.Should().HaveCount(1);
+        result.Payments[0].PrincipalPart.Should().Be(10000.00m);
+        result.Payments[0].InterestPart.Should().Be(100.00m);
+        result.Payments[0].Payment.Should().Be(10100.00m);
+        result.Payments[0].RemainingBalance.Should().Be(0m);
+    }
 }
