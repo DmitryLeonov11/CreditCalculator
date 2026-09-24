@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
+using CreditCalculator.Api.ErrorHandling;
 using FluentValidation;
+using Scalar.AspNetCore;
 
 namespace CreditCalculator
 {
@@ -14,15 +16,20 @@ namespace CreditCalculator
             builder.Services.AddControllers()
                 .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
             builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+            builder.Services.AddProblemDetails();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
 
             var app = builder.Build();
 
+            app.UseExceptionHandler();
+
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
                 app.MapOpenApi();
+                app.MapScalarApiReference();
             }
 
             app.UseHttpsRedirection();
