@@ -12,16 +12,17 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["CreditCalculator.Api.csproj", "."]
-RUN dotnet restore "./CreditCalculator.Api.csproj"
+COPY ["CreditCalculator.Api/CreditCalculator.Api.csproj", "CreditCalculator.Api/"]
+COPY ["CreditCalculator.Calculations/CreditCalculator.Calculations.csproj", "CreditCalculator.Calculations/"]
+RUN dotnet restore "CreditCalculator.Api/CreditCalculator.Api.csproj"
 COPY . .
-WORKDIR "/src/."
-RUN dotnet build "./CreditCalculator.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+WORKDIR "/src/CreditCalculator.Api"
+RUN dotnet build "CreditCalculator.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # Этот этап используется для публикации проекта службы, который будет скопирован на последний этап
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./CreditCalculator.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "CreditCalculator.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 # Этот этап используется в рабочей среде или при запуске из VS в обычном режиме (по умолчанию, когда конфигурация отладки не используется)
 FROM base AS final
