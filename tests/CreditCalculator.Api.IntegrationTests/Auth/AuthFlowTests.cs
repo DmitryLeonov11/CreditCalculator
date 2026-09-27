@@ -4,6 +4,7 @@ using CreditCalculator.Api.IntegrationTests.Fixtures;
 using CreditCalculator.Application.Abstractions;
 using CreditCalculator.Application.Contracts;
 using FluentAssertions;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,27 +23,52 @@ public class AuthFlowTests
     }
 
     [Fact]
-    public async Task Register_NewEmail_ReturnsCreatedAndSendsConfirmationLink()
+    public async Task Register_NewEmail_ReturnsAcceptedAndSendsConfirmationLink()
     {
         var email = ApiClientExtensions.UniqueEmail();
 
         var response = await _client.RegisterAsync(email);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var registeredUser = await response.ReadAsAsync<RegisteredUserResponse>();
-        registeredUser!.Email.Should().Be(email);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
         _factory.EmailSender.GetConfirmationLink(email).AbsolutePath.Should().Be("/api/v1/auth/confirm-email");
     }
 
     [Fact]
-    public async Task Register_EmailInDifferentCase_ReturnsConflict()
+    public async Task Register_ForgedHostHeader_BuildsConfirmationLinkFromConfiguredBaseUrl()
+    {
+        var email = ApiClientExtensions.UniqueEmail();
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("http://attacker.example") });
+
+        await client.RegisterAsync(email);
+
+        _factory.EmailSender.GetConfirmationLink(email).GetLeftPart(UriPartial.Authority).Should().Be(ApiFactory.PublicBaseUrl);
+    }
+
+    [Fact]
+    public async Task Register_UnconfirmedEmailInDifferentCase_ReturnsAcceptedAndResendsConfirmationLink()
     {
         var email = ApiClientExtensions.UniqueEmail();
         await _client.RegisterAsync(email);
 
         var response = await _client.RegisterAsync(email.ToUpperInvariant());
 
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        _factory.EmailSender.CountEmails(email).Should().Be(2);
+        (await _client.GetAsync(_factory.EmailSender.GetConfirmationLink(email).PathAndQuery)).StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task Register_ConfirmedEmail_ReturnsAcceptedWithoutEmailAndKeepsPassword()
+    {
+        var email = ApiClientExtensions.UniqueEmail();
+        await _client.RegisterConfirmedClientAsync(_factory, email);
+
+        var response = await _client.RegisterAsync(email, "OtherPassword1");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        _factory.EmailSender.CountEmails(email).Should().Be(1);
+        (await _client.LoginAsync(email, "OtherPassword1")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -175,15 +201,16 @@ public class AuthFlowTests
     }
 
     [Fact]
-    public async Task Register_SameEmailInParallel_CreatesUserOnceAndReturnsConflictForOthers()
+    public async Task Register_SameEmailInParallel_CreatesUserOnceAndAcceptsAllRequests()
     {
         var email = ApiClientExtensions.UniqueEmail();
 
         var responses = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => _client.RegisterAsync(email)));
 
-        responses.Count(response => response.StatusCode == HttpStatusCode.Created).Should().Be(1);
-        responses.Where(response => response.StatusCode != HttpStatusCode.Created)
-            .Should().OnlyContain(response => response.StatusCode == HttpStatusCode.Conflict);
+        responses.Should().OnlyContain(response => response.StatusCode == HttpStatusCode.Accepted);
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<IAppDbContext>();
+        (await dbContext.Users.CountAsync(user => user.Email == email)).Should().Be(1);
     }
 
     [Fact]

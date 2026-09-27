@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json.Serialization;
 using CreditCalculator.Api.Authentication;
 using CreditCalculator.Api.ErrorHandling;
+using CreditCalculator.Api.Options;
 using CreditCalculator.Api.RateLimiting;
 using CreditCalculator.Api.Validation;
 using CreditCalculator.Application;
@@ -33,6 +34,12 @@ namespace CreditCalculator
                 foreach (var proxy in builder.Configuration.GetSection("ReverseProxy:KnownProxies").Get<string[]>() ?? [])
                     options.KnownProxies.Add(IPAddress.Parse(proxy));
             });
+            builder.Services.AddOptions<PublicUrlOptions>()
+                .BindConfiguration(PublicUrlOptions.SectionName)
+                .Validate(
+                    options => Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps),
+                    "Не задан внешний адрес API PublicUrl:BaseUrl (например, https://api.example.com). Укажите его в appsettings или в переменной окружения PublicUrl__BaseUrl.")
+                .ValidateOnStart();
             builder.Services.AddValidatorsFromAssemblyContaining<Program>();
             builder.Services.AddApplication();
             builder.Services.AddInfrastructure();

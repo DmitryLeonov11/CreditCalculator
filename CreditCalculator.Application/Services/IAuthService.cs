@@ -4,7 +4,7 @@ namespace CreditCalculator.Application.Services;
 
 public interface IAuthService
 {
-    Task<RegisteredUserResponse> RegisterAsync(
+    Task RegisterAsync(
         RegisterRequest request,
         Func<string, string> buildConfirmationLink,
         CancellationToken cancellationToken = default);

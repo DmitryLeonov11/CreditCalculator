@@ -40,15 +40,26 @@ public sealed class AuthService : IAuthService
         _jwtOptions = jwtOptions.Value;
     }
 
-    public async Task<RegisteredUserResponse> RegisterAsync(
+    // Ответ одинаков для нового и занятого email, чтобы по регистрации нельзя было узнать, есть ли у адреса аккаунт.
+    public async Task RegisterAsync(
         RegisterRequest request,
         Func<string, string> buildConfirmationLink,
         CancellationToken cancellationToken = default)
     {
         var email = User.NormalizeEmail(request.Email);
+        var existingUser = await _dbContext.Users.FirstOrDefaultAsync(user => user.Email == email, cancellationToken);
 
-        if (await _dbContext.Users.AnyAsync(user => user.Email == email, cancellationToken))
-            throw new BusinessRuleException("Пользователь с таким email уже зарегистрирован.", HttpStatusCode.Conflict);
+        if (existingUser is not null)
+        {
+            // Хешируем впустую, чтобы занятый email не выдавал себя более быстрым ответом.
+            _passwordHasher.Hash(new User(), request.Password);
+
+            // Аккаунт не подтверждён — скорее всего, первое письмо потерялось: отправляем ссылку ещё раз.
+            if (!existingUser.EmailConfirmed)
+                await SendConfirmationEmailAsync(existingUser, buildConfirmationLink, cancellationToken);
+
+            return;
+        }
 
         var now = _timeProvider.GetUtcNow();
         var user = new User
@@ -62,16 +73,20 @@ public sealed class AuthService : IAuthService
         user.PasswordHash = _passwordHasher.Hash(user, request.Password);
 
         _dbContext.Users.Add(user);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Параллельный запрос с тем же email успел вставить пользователя первым и сам отправил письмо.
+            if (await _dbContext.Users.AnyAsync(existing => existing.Email == email, cancellationToken))
+                return;
 
-        var confirmationLink = buildConfirmationLink(_emailConfirmationTokenService.CreateToken(user.Id));
-        await _emailSender.SendAsync(
-            user.Email,
-            "Подтверждение регистрации в кредитном калькуляторе",
-            $"Чтобы подтвердить email, перейдите по ссылке: {confirmationLink}",
-            cancellationToken);
+            throw;
+        }
 
-        return new RegisteredUserResponse(user.Id, user.Email);
+        await SendConfirmationEmailAsync(user, buildConfirmationLink, cancellationToken);
     }
 
     public async Task ConfirmEmailAsync(string token, CancellationToken cancellationToken = default)
@@ -155,6 +170,16 @@ public sealed class AuthService : IAuthService
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return new AuthTokensResponse(accessToken.Token, accessToken.ExpiresAt, refreshToken, refreshTokenExpiresAt);
+    }
+
+    private Task SendConfirmationEmailAsync(User user, Func<string, string> buildConfirmationLink, CancellationToken cancellationToken)
+    {
+        var confirmationLink = buildConfirmationLink(_emailConfirmationTokenService.CreateToken(user.Id));
+        return _emailSender.SendAsync(
+            user.Email,
+            "Подтверждение регистрации в кредитном калькуляторе",
+            $"Чтобы подтвердить email, перейдите по ссылке: {confirmationLink}",
+            cancellationToken);
     }
 
     private static string HashRefreshToken(string refreshToken) =>

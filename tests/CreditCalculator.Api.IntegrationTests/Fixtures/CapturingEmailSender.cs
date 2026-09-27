@@ -14,6 +14,8 @@ public sealed partial class CapturingEmailSender : IEmailSender
         return Task.CompletedTask;
     }
 
+    public int CountEmails(string email) => _sentEmails.Count(sentEmail => sentEmail.To == email);
+
     public Uri GetConfirmationLink(string email)
     {
         var sentEmail = _sentEmails.Last(sentEmail => sentEmail.To == email);

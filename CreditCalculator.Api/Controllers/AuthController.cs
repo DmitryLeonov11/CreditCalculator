@@ -1,8 +1,10 @@
+using CreditCalculator.Api.Options;
 using CreditCalculator.Api.RateLimiting;
 using CreditCalculator.Application.Contracts;
 using CreditCalculator.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 
 namespace CreditCalculator.Api.Controllers;
 
@@ -11,22 +13,26 @@ namespace CreditCalculator.Api.Controllers;
 public sealed class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly PublicUrlOptions _publicUrlOptions;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, IOptions<PublicUrlOptions> publicUrlOptions)
     {
         _authService = authService;
+        _publicUrlOptions = publicUrlOptions.Value;
     }
 
     [HttpPost("register")]
     [EnableRateLimiting(RateLimitingServiceCollectionExtensions.AuthPolicy)]
-    public async Task<ActionResult<RegisteredUserResponse>> Register(RegisterRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
-        var registeredUser = await _authService.RegisterAsync(
+        // Хост ссылки берём из конфигурации, а не из заголовка Host: иначе подменённый Host
+        // увёл бы ссылку с токеном подтверждения на чужой домен.
+        await _authService.RegisterAsync(
             request,
-            token => Url.ActionLink(nameof(ConfirmEmail), values: new { token })!,
+            token => _publicUrlOptions.BaseUrl.TrimEnd('/') + Url.Action(nameof(ConfirmEmail), new { token }),
             cancellationToken);
 
-        return StatusCode(StatusCodes.Status201Created, registeredUser);
+        return Accepted();
     }
 
     [HttpGet("confirm-email")]
