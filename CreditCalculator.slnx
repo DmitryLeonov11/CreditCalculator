@@ -1,7 +1,11 @@
 <Solution>
   <Folder Name="/tests/">
+    <Project Path="tests/CreditCalculator.Api.IntegrationTests/CreditCalculator.Api.IntegrationTests.csproj" />
     <Project Path="tests/CreditCalculator.Calculations.Tests/CreditCalculator.Calculations.Tests.csproj" />
   </Folder>
   <Project Path="CreditCalculator.Api/CreditCalculator.Api.csproj" />
+  <Project Path="CreditCalculator.Application/CreditCalculator.Application.csproj" />
   <Project Path="CreditCalculator.Calculations/CreditCalculator.Calculations.csproj" />
+  <Project Path="CreditCalculator.Domain/CreditCalculator.Domain.csproj" />
+  <Project Path="CreditCalculator.Infrastructure/CreditCalculator.Infrastructure.csproj" />
 </Solution>

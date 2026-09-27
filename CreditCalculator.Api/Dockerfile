@@ -14,6 +14,9 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["CreditCalculator.Api/CreditCalculator.Api.csproj", "CreditCalculator.Api/"]
 COPY ["CreditCalculator.Calculations/CreditCalculator.Calculations.csproj", "CreditCalculator.Calculations/"]
+COPY ["CreditCalculator.Domain/CreditCalculator.Domain.csproj", "CreditCalculator.Domain/"]
+COPY ["CreditCalculator.Application/CreditCalculator.Application.csproj", "CreditCalculator.Application/"]
+COPY ["CreditCalculator.Infrastructure/CreditCalculator.Infrastructure.csproj", "CreditCalculator.Infrastructure/"]
 RUN dotnet restore "CreditCalculator.Api/CreditCalculator.Api.csproj"
 COPY . .
 WORKDIR "/src/CreditCalculator.Api"

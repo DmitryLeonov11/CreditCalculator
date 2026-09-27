@@ -1,10 +1,34 @@
 services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      - POSTGRES_DB=creditcalculator
+      - POSTGRES_USER=creditcalculator
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Задайте POSTGRES_PASSWORD в .env (см. .env.example)}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U creditcalculator -d creditcalculator"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   api:
     build:
       context: .
       dockerfile: CreditCalculator.Api/Dockerfile
     ports:
-      - "8080:8080"
+      - "${API_PORT:-8080}:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Default=Host=db;Port=5432;Database=creditcalculator;Username=creditcalculator;Password=${POSTGRES_PASSWORD}
+      - Jwt__SigningKey=${JWT_SIGNING_KEY:?Задайте JWT_SIGNING_KEY в .env (см. .env.example)}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:

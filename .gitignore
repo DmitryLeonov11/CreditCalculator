@@ -365,5 +365,6 @@ FodyWeavers.xsd
 # Локальные настройки с реальными секретами (строки подключения, JWT-ключи и т.п.)
 appsettings.Production.json
 appsettings.*.local.json
+.env
 
 /docs

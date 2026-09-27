@@ -1,23 +1,41 @@
 # CreditCalculator
 
-Кредитный калькулятор с поддержкой аннуитетных и дифференцированных платежей, эффективной процентной ставкой (ППС) и пересчётом графика при досрочном погашении.
+Кредитный калькулятор с поддержкой аннуитетных и дифференцированных платежей, эффективной процентной ставкой (ППС) и пересчётом графика при досрочном погашении. Пользователи регистрируются, входят по JWT и заполняют анкету; справочник кредитных продуктов хранится в PostgreSQL.
 
 ## Быстрый старт
 
-```bash
-dotnet restore
-dotnet run --project CreditCalculator.Api
-```
+Секреты (пароль БД и ключ подписи JWT) в репозиторий не попадают. Для Docker Compose они берутся из файла `.env`, для `dotnet run` — из User Secrets.
 
-API поднимется на `http://localhost:5288` (профиль `http`) или `https://localhost:7265` (профиль `https`, запускается по умолчанию в Visual Studio/`dotnet run`).
-
-Через Docker Compose (только API):
+### Docker Compose (API + PostgreSQL)
 
 ```bash
+cp .env.example .env   # подставить POSTGRES_PASSWORD и JWT_SIGNING_KEY
 docker compose up --build
 ```
 
-API будет доступен на `http://localhost:8080`.
+API будет доступен на `http://localhost:8080`, PostgreSQL — на `localhost:5432`. Если эти порты заняты, задайте `API_PORT` и `DB_PORT` в `.env`.
+
+### Локально через `dotnet run`
+
+Нужна запущенная база, например из того же compose (`docker compose up -d db`). Затем:
+
+```bash
+dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5432;Database=creditcalculator;Username=creditcalculator;Password=<пароль из .env>" --project CreditCalculator.Api
+dotnet user-secrets set "Jwt:SigningKey" "<та же строка, что JWT_SIGNING_KEY>" --project CreditCalculator.Api
+dotnet run --project CreditCalculator.Api
+```
+
+API поднимется на `http://localhost:5288` (профиль `http`) или `https://localhost:7265` (профиль `https`, запускается по умолчанию в Visual Studio/`dotnet run`). Без строки подключения или с ключом подписи короче 32 символов приложение не стартует и сообщает, чего не хватает. Полный список настроек с плейсхолдерами — в `CreditCalculator.Api/appsettings.Example.json`.
+
+В dev-режиме при старте применяются миграции и создаются начальные данные: кредитные продукты и тестовый сотрудник `employee@creditcalculator.local` с паролем `Employee123` (задаётся в секции `Seed` файла `appsettings.Development.json`). В продакшене миграции должны применяться отдельным шагом деплоя.
+
+### Миграции
+
+Миграции лежат в `CreditCalculator.Infrastructure/Persistence/Migrations`. Для `dotnet ef` Api запускать не нужно: контекст создаётся фабрикой времени разработки.
+
+```bash
+dotnet ef migrations add <Имя> --project CreditCalculator.Infrastructure --output-dir Persistence/Migrations
+```
 
 ## Документация API
 
@@ -104,8 +122,72 @@ curl -X POST http://localhost:5288/api/v1/calculator/schedule \
 
 Ответ содержит два графика — `original` (без досрочных погашений) и `withEarlyRepayments` (пересчитанный) — в том же формате, что и у `/schedule`.
 
+## Регистрация и вход
+
+Базовый путь: `/api/v1/auth`. На `register` и `login` действует ограничение частоты запросов: по умолчанию 5 попыток в минуту с одного IP (секция `RateLimiting:Auth`). Сверх лимита API отвечает `429`.
+
+| Метод | Путь | Что делает |
+|---|---|---|
+| `POST` | `/register` | Регистрация клиента. Ответ `201`, ссылка подтверждения пишется в лог — почтовый сервер пока не настроен |
+| `GET` | `/confirm-email?token=...` | Подтверждение email по ссылке из письма (ссылка действует сутки). Ответ `204` |
+| `POST` | `/login` | Вход. До подтверждения email — `403`, при неверной паре email/пароль — `401` |
+| `POST` | `/refresh` | Новая пара токенов по refresh-токену. Старый refresh-токен при этом отзывается |
+
+```jsonc
+// POST /api/v1/auth/register
+{ "email": "client@example.com", "password": "Password123", "personalDataConsent": true }
+
+// POST /api/v1/auth/login → 200
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "accessTokenExpiresAt": "2026-09-27T10:15:00+00:00",
+  "refreshToken": "q3Jp0v...",
+  "refreshTokenExpiresAt": "2026-10-04T10:00:00+00:00"
+}
+
+// POST /api/v1/auth/refresh
+{ "refreshToken": "q3Jp0v..." }
+```
+
+Access-токен живёт 15 минут, refresh-токен — 7 дней. Защищённые эндпоинты ждут заголовок `Authorization: Bearer <accessToken>`. Права проверяются политиками `ClientOnly` и `EmployeeOnly` по роли из токена.
+
+## Анкета клиента
+
+`GET /api/v1/profile` и `PUT /api/v1/profile` — только для роли `Client`. `GET` отвечает `404`, пока анкета не заполнена.
+
+```jsonc
+// PUT /api/v1/profile
+{
+  "fullName": "Иванов Иван Иванович",
+  "birthDate": "1990-05-15",
+  "monthlyIncome": 2500.50,
+  "employmentMonths": 36,
+  "existingMonthlyPayments": 300,
+  "dependents": 1
+}
+```
+
+Ограничения: возраст от 18 до 100 лет, доход и текущие платежи не отрицательные, стаж 0–600 месяцев, иждивенцев 0–20.
+
+## Справочник кредитных продуктов
+
+`GET /api/v1/products` — активные продукты: назначение (`Consumer`, `Auto`, `Mortgage`), границы суммы и срока, базовая ставка. Авторизация не нужна.
+
+## Персональные данные (Закон Республики Беларусь № 99-З «О защите персональных данных»)
+
+Это учебный проект, но с персональными данными он обращается так же, как настоящий сервис:
+
+- **Минимум полей.** Анкета хранит только то, что понадобится для скоринга: ФИО, дату рождения, доход, стаж, текущие платежи и число иждивенцев. Паспортные данные, идентификационный номер и адрес не собираются.
+- **Согласие при регистрации.** Без `personalDataConsent: true` регистрация отклоняется, а момент согласия сохраняется у пользователя (`PersonalDataConsentAt`).
+- **Пароли.** Хранится только хеш: PBKDF2 с солью через `PasswordHasher<T>` из ASP.NET Core Identity. Refresh-токены тоже лежат в базе в виде SHA-256-хеша, так что утечка таблицы не даёт рабочих токенов.
+- **Секреты.** Строка подключения и ключ подписи JWT не хранятся в репозитории — только в User Secrets, переменных окружения или локальном `.env`.
+- **Демо-данные.** В демо не используются настоящие паспортные данные и данные реальных людей. Тестовые учётные записи и анкеты заполняются вымышленными значениями.
+
 ## Тесты
 
 ```bash
 dotnet test
 ```
+
+- `tests/CreditCalculator.Calculations.Tests` — расчёты графиков, ППС и досрочного погашения.
+- `tests/CreditCalculator.Api.IntegrationTests` — API целиком через `WebApplicationFactory` на настоящем PostgreSQL в Testcontainers: регистрация, подтверждение email, вход, обновление токенов, анкета, справочник продуктов, rate limiting. Для этих тестов нужен запущенный Docker.

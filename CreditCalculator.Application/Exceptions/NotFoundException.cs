@@ -1,4 +1,4 @@
-namespace CreditCalculator.Api.Exceptions;
+namespace CreditCalculator.Application.Exceptions;
 
 public class NotFoundException : Exception
 {

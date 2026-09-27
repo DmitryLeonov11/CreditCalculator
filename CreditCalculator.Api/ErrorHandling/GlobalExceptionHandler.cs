@@ -1,6 +1,8 @@
-using CreditCalculator.Api.Exceptions;
+using CreditCalculator.Application.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace CreditCalculator.Api.ErrorHandling;
 
@@ -17,11 +19,15 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
 
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
-        var statusCode = exception switch
+        var (statusCode, title) = exception switch
         {
-            NotFoundException => StatusCodes.Status404NotFound,
-            BusinessRuleException businessRuleException => businessRuleException.StatusCode,
-            _ => StatusCodes.Status500InternalServerError
+            NotFoundException => (StatusCodes.Status404NotFound, exception.Message),
+            AuthenticationFailedException => (StatusCodes.Status401Unauthorized, exception.Message),
+            BusinessRuleException businessRuleException => ((int)businessRuleException.StatusCode, exception.Message),
+            // Проверка «запись уже есть» и вставка — не атомарны: параллельный запрос упирается в уникальный индекс.
+            DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } } =>
+                (StatusCodes.Status409Conflict, "Данные уже изменены другим запросом. Повторите попытку."),
+            _ => (StatusCodes.Status500InternalServerError, "Внутренняя ошибка сервера")
         };
 
         if (statusCode == StatusCodes.Status500InternalServerError)
@@ -36,7 +42,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             ProblemDetails = new ProblemDetails
             {
                 Status = statusCode,
-                Title = statusCode == StatusCodes.Status500InternalServerError ? "Внутренняя ошибка сервера" : exception.Message
+                Title = title
             }
         });
     }

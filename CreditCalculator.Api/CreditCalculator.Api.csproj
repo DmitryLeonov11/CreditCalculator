@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.24.2-preview.1" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.17.9" />
@@ -19,6 +20,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CreditCalculator.Calculations\CreditCalculator.Calculations.csproj" />
+    <ProjectReference Include="..\CreditCalculator.Application\CreditCalculator.Application.csproj" />
+    <ProjectReference Include="..\CreditCalculator.Infrastructure\CreditCalculator.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
