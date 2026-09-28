@@ -2,12 +2,17 @@ using System.Net;
 
 namespace CreditCalculator.Application.Exceptions;
 
-public class BusinessRuleException : Exception
+public class BusinessRuleException : Domain.Exceptions.BusinessRuleException
 {
-    public HttpStatusCode StatusCode { get; }
+    public HttpStatusCode HttpStatusCode => (HttpStatusCode)StatusCode;
 
-    public BusinessRuleException(string message, HttpStatusCode statusCode = HttpStatusCode.BadRequest) : base(message)
+    public BusinessRuleException(string message, HttpStatusCode statusCode = HttpStatusCode.BadRequest)
+        : base(message, (int)statusCode)
     {
-        StatusCode = statusCode;
+    }
+
+    public BusinessRuleException(string message, int statusCode)
+        : base(message, statusCode)
+    {
     }
 }
