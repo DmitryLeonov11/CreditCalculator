@@ -23,8 +23,12 @@ public class Application
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
+    public uint RowVersion { get; set; }
+
     public User User { get; set; } = null!;
     public CreditProduct CreditProduct { get; set; } = null!;
+
+    public List<ApplicationStatusHistory> StatusHistory { get; set; } = [];
 
     public bool CanTransitionTo(ApplicationStatus targetStatus)
     {
@@ -52,7 +56,7 @@ public class Application
         };
     }
 
-    public void ChangeStatus(ApplicationStatus targetStatus)
+    public void ChangeStatus(ApplicationStatus targetStatus, Guid? changedByUserId = null, string? comment = null)
     {
         if (Status == targetStatus)
         {
@@ -66,8 +70,36 @@ public class Application
                 statusCode: 409);
         }
 
+        var oldStatus = Status;
         Status = targetStatus;
         UpdatedAt = DateTimeOffset.UtcNow;
+
+        StatusHistory.Add(new ApplicationStatusHistory
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = Id,
+            FromStatus = oldStatus,
+            ToStatus = targetStatus,
+            ChangedByUserId = changedByUserId,
+            Comment = comment,
+            ChangedAt = UpdatedAt
+        });
+    }
+
+    public ApplicationStatusHistory AddStatusHistory(ApplicationStatus? fromStatus, ApplicationStatus toStatus, Guid? changedByUserId = null, string? comment = null)
+    {
+        var entry = new ApplicationStatusHistory
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = Id,
+            FromStatus = fromStatus,
+            ToStatus = toStatus,
+            ChangedByUserId = changedByUserId,
+            Comment = comment,
+            ChangedAt = DateTimeOffset.UtcNow
+        };
+        StatusHistory.Add(entry);
+        return entry;
     }
 
     public void ApplySnapshot(decimal income, decimal existingPayments, int age)

@@ -1,3 +1,4 @@
+using ApplicationEntity = CreditCalculator.Domain.Entities.Application;
 using CreditCalculator.Application.Abstractions;
 using CreditCalculator.Domain.Entities;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
@@ -15,6 +16,8 @@ public sealed class AppDbContext : DbContext, IAppDbContext, IDataProtectionKeyC
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Profile> Profiles => Set<Profile>();
     public DbSet<CreditProduct> CreditProducts => Set<CreditProduct>();
+    public DbSet<ApplicationEntity> Applications => Set<ApplicationEntity>();
+    public DbSet<ApplicationStatusHistory> ApplicationStatusHistories => Set<ApplicationStatusHistory>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>

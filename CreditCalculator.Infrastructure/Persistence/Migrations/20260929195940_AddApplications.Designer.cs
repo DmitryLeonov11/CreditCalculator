@@ -3,6 +3,7 @@ using System;
 using CreditCalculator.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CreditCalculator.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260929195940_AddApplications")]
+    partial class AddApplications
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -77,10 +80,7 @@ namespace CreditCalculator.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreditProductId");
 
-                    b.HasIndex("Status", "CreatedAt");
-
-                    b.HasIndex("UserId", "CreatedAt")
-                        .IsDescending(false, true);
+                    b.HasIndex("UserId");
 
                     b.ToTable("Applications", null, t =>
                         {
@@ -90,43 +90,6 @@ namespace CreditCalculator.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_Applications_TermMonths", "\"TermMonths\" BETWEEN 1 AND 360");
                         });
-                });
-
-            modelBuilder.Entity("CreditCalculator.Domain.Entities.ApplicationStatusHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ApplicationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("ChangedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("ChangedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Comment")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("FromStatus")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("ToStatus")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ChangedByUserId");
-
-                    b.HasIndex("ApplicationId", "ChangedAt");
-
-                    b.ToTable("ApplicationStatusHistories");
                 });
 
             modelBuilder.Entity("CreditCalculator.Domain.Entities.CreditProduct", b =>
@@ -312,24 +275,6 @@ namespace CreditCalculator.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CreditCalculator.Domain.Entities.ApplicationStatusHistory", b =>
-                {
-                    b.HasOne("CreditCalculator.Domain.Entities.Application", "Application")
-                        .WithMany("StatusHistory")
-                        .HasForeignKey("ApplicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CreditCalculator.Domain.Entities.User", "ChangedByUser")
-                        .WithMany()
-                        .HasForeignKey("ChangedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Application");
-
-                    b.Navigation("ChangedByUser");
-                });
-
             modelBuilder.Entity("CreditCalculator.Domain.Entities.Profile", b =>
                 {
                     b.HasOne("CreditCalculator.Domain.Entities.User", "User")
@@ -350,11 +295,6 @@ namespace CreditCalculator.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("CreditCalculator.Domain.Entities.Application", b =>
-                {
-                    b.Navigation("StatusHistory");
                 });
 
             modelBuilder.Entity("CreditCalculator.Domain.Entities.User", b =>

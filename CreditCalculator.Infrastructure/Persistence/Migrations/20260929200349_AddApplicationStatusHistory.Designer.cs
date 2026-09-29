@@ -3,6 +3,7 @@ using System;
 using CreditCalculator.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CreditCalculator.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260929200349_AddApplicationStatusHistory")]
+    partial class AddApplicationStatusHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -77,10 +80,7 @@ namespace CreditCalculator.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreditProductId");
 
-                    b.HasIndex("Status", "CreatedAt");
-
-                    b.HasIndex("UserId", "CreatedAt")
-                        .IsDescending(false, true);
+                    b.HasIndex("UserId");
 
                     b.ToTable("Applications", null, t =>
                         {
@@ -122,9 +122,9 @@ namespace CreditCalculator.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ChangedByUserId");
+                    b.HasIndex("ApplicationId");
 
-                    b.HasIndex("ApplicationId", "ChangedAt");
+                    b.HasIndex("ChangedByUserId");
 
                     b.ToTable("ApplicationStatusHistories");
                 });
