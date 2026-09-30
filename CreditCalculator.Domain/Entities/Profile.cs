@@ -12,4 +12,10 @@ public class Profile
     public DateTimeOffset UpdatedAt { get; set; }
 
     public User User { get; set; } = null!;
+
+    public int GetAgeOn(DateOnly today)
+    {
+        var age = today.Year - BirthDate.Year;
+        return today < BirthDate.AddYears(age) ? age - 1 : age;
+    }
 }

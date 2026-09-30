@@ -18,6 +18,7 @@ public sealed class AppDbContext : DbContext, IAppDbContext, IDataProtectionKeyC
     public DbSet<CreditProduct> CreditProducts => Set<CreditProduct>();
     public DbSet<ApplicationEntity> Applications => Set<ApplicationEntity>();
     public DbSet<ApplicationStatusHistory> ApplicationStatusHistories => Set<ApplicationStatusHistory>();
+    public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
