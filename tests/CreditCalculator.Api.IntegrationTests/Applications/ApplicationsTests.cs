@@ -108,6 +108,47 @@ public class ApplicationsTests
     }
 
     [Fact]
+    public async Task GetApplication_OtherClientCannotReadOrWithdrawIt()
+    {
+        var owner = await CreateClientWithProfileAsync();
+        var stranger = await CreateClientWithProfileAsync();
+        var product = await GetConsumerProductAsync(owner);
+        var createResponse = await owner.PostAsJsonAsync(
+            "/api/v1/applications",
+            new CreateApplicationRequest(product.Id, 10_000m, 12));
+        createResponse.EnsureSuccessStatusCode();
+        var application = await createResponse.ReadAsAsync<TestApplication>();
+        var applicationId = application!.Id;
+
+        var ownerGetResponse = await owner.GetAsync($"/api/v1/applications/{applicationId}");
+        var getResponse = await stranger.GetAsync($"/api/v1/applications/{applicationId}");
+        var withdrawResponse = await stranger.PostAsync($"/api/v1/applications/{applicationId}/withdraw", content: null);
+
+        ownerGetResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        withdrawResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task WithdrawApplication_ChangesStatusAndAddsHistory()
+    {
+        var client = await CreateClientWithProfileAsync();
+        var product = await GetConsumerProductAsync(client);
+        var createResponse = await client.PostAsJsonAsync(
+            "/api/v1/applications",
+            new CreateApplicationRequest(product.Id, 10_000m, 12));
+        createResponse.EnsureSuccessStatusCode();
+        var application = await createResponse.ReadAsAsync<TestApplication>();
+
+        var withdrawResponse = await client.PostAsync($"/api/v1/applications/{application!.Id}/withdraw", content: null);
+
+        withdrawResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var withdrawn = await withdrawResponse.ReadAsAsync<TestApplication>();
+        withdrawn!.Status.Should().Be("Withdrawn");
+        withdrawn.StatusHistory.Should().Contain(entry => entry.ToStatus == "Withdrawn");
+    }
+
+    [Fact]
     public async Task CreateApplication_IdempotencyKeyTooLong_ReturnsBadRequest()
     {
         var client = await CreateClientWithProfileAsync();

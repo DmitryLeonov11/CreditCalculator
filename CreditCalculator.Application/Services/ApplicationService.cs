@@ -166,6 +166,48 @@ public sealed class ApplicationService : IApplicationService
             applications.Select(application => ToResponse(application)).ToList());
     }
 
+    public async Task<ApplicationResponse> GetByIdAsync(
+        Guid userId,
+        Guid applicationId,
+        CancellationToken cancellationToken = default)
+    {
+        var application = await _dbContext.Applications
+            .AsNoTracking()
+            .Include(application => application.StatusHistory)
+            .Include(application => application.CreditProduct)
+            .FirstOrDefaultAsync(
+                application => application.Id == applicationId && application.UserId == userId,
+                cancellationToken)
+            ?? throw new NotFoundException("Заявка не найдена.");
+
+        return ToResponse(application);
+    }
+
+    public async Task<ApplicationResponse> WithdrawAsync(
+        Guid userId,
+        Guid applicationId,
+        CancellationToken cancellationToken = default)
+    {
+        var application = await _dbContext.Applications
+            .Include(application => application.StatusHistory)
+            .Include(application => application.CreditProduct)
+            .FirstOrDefaultAsync(
+                application => application.Id == applicationId && application.UserId == userId,
+                cancellationToken)
+            ?? throw new NotFoundException("Заявка не найдена.");
+
+        if (application.Status is not (ApplicationStatus.Draft or ApplicationStatus.Submitted or ApplicationStatus.Scoring or ApplicationStatus.UnderReview))
+        {
+            throw new BusinessRuleException("Заявку нельзя отозвать после принятия решения.", HttpStatusCode.Conflict);
+        }
+
+        application.ChangeStatus(ApplicationStatus.Withdrawn, userId);
+        _dbContext.ApplicationStatusHistories.Add(application.StatusHistory[^1]);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToResponse(application);
+    }
+
     private static void EnsureMatchingRequestBody(IdempotencyKey existing, string requestHash)
     {
         if (!string.Equals(existing.RequestBodyHash, requestHash, StringComparison.Ordinal))

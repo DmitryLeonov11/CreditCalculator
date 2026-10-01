@@ -15,4 +15,14 @@ public interface IApplicationService
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
+
+    Task<ApplicationResponse> GetByIdAsync(
+        Guid userId,
+        Guid applicationId,
+        CancellationToken cancellationToken = default);
+
+    Task<ApplicationResponse> WithdrawAsync(
+        Guid userId,
+        Guid applicationId,
+        CancellationToken cancellationToken = default);
 }

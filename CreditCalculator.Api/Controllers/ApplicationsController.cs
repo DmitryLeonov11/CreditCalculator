@@ -36,4 +36,12 @@ public sealed class ApplicationsController : ControllerBase
         [FromQuery] GetApplicationsPageQuery query,
         CancellationToken cancellationToken) =>
         Ok(await _applicationService.GetPagedAsync(User.GetUserId(), query.Page, query.PageSize, cancellationToken));
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<ApplicationResponse>> GetById(Guid id, CancellationToken cancellationToken) =>
+        Ok(await _applicationService.GetByIdAsync(User.GetUserId(), id, cancellationToken));
+
+    [HttpPost("{id:guid}/withdraw")]
+    public async Task<ActionResult<ApplicationResponse>> Withdraw(Guid id, CancellationToken cancellationToken) =>
+        Ok(await _applicationService.WithdrawAsync(User.GetUserId(), id, cancellationToken));
 }
