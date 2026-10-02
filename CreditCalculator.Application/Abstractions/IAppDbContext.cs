@@ -11,6 +11,7 @@ public interface IAppDbContext
     DbSet<CreditProduct> CreditProducts { get; }
     DbSet<CreditCalculator.Domain.Entities.Application> Applications { get; }
     DbSet<ApplicationStatusHistory> ApplicationStatusHistories { get; }
+    DbSet<ScoringResult> ScoringResults { get; }
     DbSet<IdempotencyKey> IdempotencyKeys { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

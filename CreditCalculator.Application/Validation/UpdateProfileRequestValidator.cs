@@ -21,6 +21,10 @@ public sealed class UpdateProfileRequestValidator : AbstractValidator<UpdateProf
             })
             .WithMessage("Возраст клиента должен быть от 18 до 100 лет.");
 
+        RuleFor(request => request.Gender)
+            .IsInEnum()
+            .WithMessage("Укажите пол клиента.");
+
         RuleFor(request => request.MonthlyIncome)
             .GreaterThanOrEqualTo(0m)
             .WithMessage("Ежемесячный доход не может быть отрицательным.");

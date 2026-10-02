@@ -1,8 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
+using CreditCalculator.Application.Abstractions;
 using CreditCalculator.Api.IntegrationTests.Fixtures;
 using CreditCalculator.Application.Contracts;
+using CreditCalculator.Domain.Enums;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CreditCalculator.Api.IntegrationTests.Applications;
 
@@ -12,6 +16,7 @@ public class ApplicationsTests
     private static readonly UpdateProfileRequest ValidProfile = new(
         "Иванов Иван Иванович",
         new DateOnly(1990, 5, 15),
+        Gender.Male,
         MonthlyIncome: 2500.50m,
         EmploymentMonths: 36,
         ExistingMonthlyPayments: 300m,
@@ -54,6 +59,11 @@ public class ApplicationsTests
         application.IncomeAtApply.Should().Be(2500.50m);
         application.ExistingPaymentsAtApply.Should().Be(300m);
         application.AgeAtApply.Should().Be(36);
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<IAppDbContext>();
+        var savedApplication = await dbContext.Applications.AsNoTracking().SingleAsync(item => item.Id == application.Id);
+        savedApplication.BirthDateAtApply.Should().Be(new DateOnly(1990, 5, 15));
+        savedApplication.GenderAtApply.Should().Be(Gender.Male);
         application.StatusHistory.Should().ContainSingle()
             .Which.Should().BeEquivalentTo(new TestStatusHistoryEntry(FromStatus: "Draft", ToStatus: "Submitted"));
     }

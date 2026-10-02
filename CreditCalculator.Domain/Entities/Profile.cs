@@ -1,3 +1,5 @@
+using CreditCalculator.Domain.Enums;
+
 namespace CreditCalculator.Domain.Entities;
 
 public class Profile
@@ -5,6 +7,7 @@ public class Profile
     public Guid UserId { get; set; }
     public string FullName { get; set; } = string.Empty;
     public DateOnly BirthDate { get; set; }
+    public Gender? Gender { get; set; }
     public decimal MonthlyIncome { get; set; }
     public int EmploymentMonths { get; set; }
     public decimal ExistingMonthlyPayments { get; set; }

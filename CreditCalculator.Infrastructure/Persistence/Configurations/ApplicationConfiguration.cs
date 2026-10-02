@@ -17,6 +17,10 @@ public sealed class ApplicationConfiguration : IEntityTypeConfiguration<Applicat
         builder.Property(application => application.InterestRate)
             .HasPrecision(9, 4);
 
+        builder.Property(application => application.GenderAtApply)
+            .HasConversion<string>()
+            .HasMaxLength(16);
+
         builder.Property(application => application.RowVersion)
             .IsRowVersion();
 

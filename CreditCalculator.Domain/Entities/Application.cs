@@ -19,6 +19,8 @@ public class Application
     public decimal? IncomeAtApply { get; set; }
     public decimal? ExistingPaymentsAtApply { get; set; }
     public int? AgeAtApply { get; set; }
+    public DateOnly? BirthDateAtApply { get; set; }
+    public Gender? GenderAtApply { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
@@ -29,6 +31,7 @@ public class Application
     public CreditProduct CreditProduct { get; set; } = null!;
 
     public List<ApplicationStatusHistory> StatusHistory { get; set; } = [];
+    public List<ScoringResult> ScoringResults { get; set; } = [];
 
     public bool CanTransitionTo(ApplicationStatus targetStatus)
     {
@@ -102,10 +105,12 @@ public class Application
         return entry;
     }
 
-    public void ApplySnapshot(decimal income, decimal existingPayments, int age)
+    public void ApplySnapshot(decimal income, decimal existingPayments, int age, DateOnly birthDate, Gender? gender)
     {
         IncomeAtApply = income;
         ExistingPaymentsAtApply = existingPayments;
         AgeAtApply = age;
+        BirthDateAtApply = birthDate;
+        GenderAtApply = gender;
     }
 }

@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/tests/">
     <Project Path="tests/CreditCalculator.Api.IntegrationTests/CreditCalculator.Api.IntegrationTests.csproj" />
+    <Project Path="tests/CreditCalculator.Application.Tests/CreditCalculator.Application.Tests.csproj" />
     <Project Path="tests/CreditCalculator.Calculations.Tests/CreditCalculator.Calculations.Tests.csproj" />
     <Project Path="tests/CreditCalculator.Domain.Tests/CreditCalculator.Domain.Tests.csproj" />
   </Folder>

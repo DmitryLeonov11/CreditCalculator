@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using CreditCalculator.Api.IntegrationTests.Fixtures;
 using CreditCalculator.Application.Contracts;
+using CreditCalculator.Domain.Enums;
 using FluentAssertions;
 
 namespace CreditCalculator.Api.IntegrationTests.Profiles;
@@ -12,6 +13,7 @@ public class ProfileTests
     private static readonly UpdateProfileRequest ValidProfile = new(
         "Иванов Иван Иванович",
         new DateOnly(1990, 5, 15),
+        Gender.Male,
         MonthlyIncome: 2500.50m,
         EmploymentMonths: 36,
         ExistingMonthlyPayments: 300m,

@@ -38,6 +38,7 @@ public sealed class ProfileService : IProfileService
 
         profile.FullName = request.FullName.Trim();
         profile.BirthDate = request.BirthDate;
+        profile.Gender = request.Gender;
         profile.MonthlyIncome = request.MonthlyIncome;
         profile.EmploymentMonths = request.EmploymentMonths;
         profile.ExistingMonthlyPayments = request.ExistingMonthlyPayments;
@@ -52,6 +53,7 @@ public sealed class ProfileService : IProfileService
     private static ProfileResponse ToResponse(Profile profile) => new(
         profile.FullName,
         profile.BirthDate,
+        profile.Gender,
         profile.MonthlyIncome,
         profile.EmploymentMonths,
         profile.ExistingMonthlyPayments,

@@ -92,7 +92,12 @@ public sealed class ApplicationService : IApplicationService
             CreatedAt = now,
             UpdatedAt = now
         };
-        application.ApplySnapshot(profile.MonthlyIncome, profile.ExistingMonthlyPayments, profile.GetAgeOn(today));
+        application.ApplySnapshot(
+            profile.MonthlyIncome,
+            profile.ExistingMonthlyPayments,
+            profile.GetAgeOn(today),
+            profile.BirthDate,
+            profile.Gender);
 
         // Заявка создаётся в Draft и сразу переходит в Submitted через конечный автомат:
         // в истории статусов с первого момента есть запись Draft → Submitted.

@@ -11,6 +11,7 @@ public sealed class ProfileConfiguration : IEntityTypeConfiguration<Profile>
         builder.HasKey(profile => profile.UserId);
 
         builder.Property(profile => profile.FullName).HasMaxLength(200);
+        builder.Property(profile => profile.Gender).HasConversion<string>().HasMaxLength(16);
 
         builder.HasOne(profile => profile.User)
             .WithOne(user => user.Profile)
