@@ -6,6 +6,7 @@ using CreditCalculator.Api.Options;
 using CreditCalculator.Api.RateLimiting;
 using CreditCalculator.Api.Validation;
 using CreditCalculator.Application;
+using CreditCalculator.Application.Scoring;
 using CreditCalculator.Infrastructure;
 using CreditCalculator.Infrastructure.Persistence;
 using CreditCalculator.Infrastructure.Persistence.Seeding;
@@ -42,6 +43,14 @@ namespace CreditCalculator
                 .ValidateOnStart();
             builder.Services.AddValidatorsFromAssemblyContaining<Program>();
             builder.Services.AddApplication();
+            builder.Services.AddOptions<ScoringOptions>()
+                .BindConfiguration(ScoringOptions.SectionName)
+                .Validate(
+                    options => options.MinimumLivingWageByn > 0
+                        && options.BelarusianGoodsPdnThreshold > 0.25m
+                        && options.BelarusianGoodsPdnThreshold <= 0.50m,
+                    "Scoring:MinimumLivingWageByn должен быть больше нуля, а Scoring:BelarusianGoodsPdnThreshold — больше 0,25 и не больше 0,50.")
+                .ValidateOnStart();
             builder.Services.AddInfrastructure();
             builder.Services.AddJwtAuthentication();
             builder.Services.AddAuthRateLimiting();

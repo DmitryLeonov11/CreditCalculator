@@ -74,6 +74,16 @@ public sealed class ApplicationService : IApplicationService
                 $"Срок заявки для продукта «{product.Name}» должен быть от {product.MinTermMonths} до {product.MaxTermMonths} месяцев.");
         }
 
+        if (product.Purpose == CreditPurpose.Mortgage && request.DownPaymentAmount is null)
+        {
+            throw new BusinessRuleException("Для ипотечной заявки укажите первоначальный взнос.");
+        }
+
+        if (product.Purpose != CreditPurpose.Mortgage && request.DownPaymentAmount is not null)
+        {
+            throw new BusinessRuleException("Первоначальный взнос указывается только для ипотечной заявки.");
+        }
+
         var profile = await _dbContext.Profiles
             .AsNoTracking()
             .FirstOrDefaultAsync(profile => profile.UserId == userId, cancellationToken)
@@ -97,7 +107,10 @@ public sealed class ApplicationService : IApplicationService
             profile.ExistingMonthlyPayments,
             profile.GetAgeOn(today),
             profile.BirthDate,
-            profile.Gender);
+            profile.Gender,
+            profile.EmploymentMonths,
+            profile.Dependents,
+            request.DownPaymentAmount);
 
         // Заявка создаётся в Draft и сразу переходит в Submitted через конечный автомат:
         // в истории статусов с первого момента есть запись Draft → Submitted.

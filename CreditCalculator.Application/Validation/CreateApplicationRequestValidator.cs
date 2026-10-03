@@ -20,5 +20,10 @@ public sealed class CreateApplicationRequestValidator : AbstractValidator<Create
         RuleFor(request => request.TermMonths)
             .InclusiveBetween(1, 360)
             .WithMessage("Срок должен быть от 1 до 360 месяцев.");
+
+        RuleFor(request => request.DownPaymentAmount)
+            .GreaterThanOrEqualTo(0)
+            .When(request => request.DownPaymentAmount.HasValue)
+            .WithMessage("Первоначальный взнос не может быть отрицательным.");
     }
 }

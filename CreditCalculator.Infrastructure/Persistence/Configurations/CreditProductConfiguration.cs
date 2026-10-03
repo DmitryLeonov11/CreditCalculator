@@ -14,5 +14,6 @@ public sealed class CreditProductConfiguration : IEntityTypeConfiguration<Credit
         builder.Property(product => product.Purpose).HasConversion<string>().HasMaxLength(32);
 
         builder.Property(product => product.BaseRate).HasPrecision(9, 4);
+        builder.Property(product => product.IsBelarusianMade).HasDefaultValue(false);
     }
 }

@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CreditCalculator.Domain\CreditCalculator.Domain.csproj" />
+    <ProjectReference Include="..\CreditCalculator.Calculations\CreditCalculator.Calculations.csproj" />
   </ItemGroup>
 
 </Project>

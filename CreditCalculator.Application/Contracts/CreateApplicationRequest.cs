@@ -4,4 +4,5 @@ namespace CreditCalculator.Application.Contracts;
 public sealed record CreateApplicationRequest(
     Guid CreditProductId,
     decimal Amount,
-    int TermMonths);
+    int TermMonths,
+    decimal? DownPaymentAmount = null);

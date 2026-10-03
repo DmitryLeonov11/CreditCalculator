@@ -20,6 +20,11 @@ public static class DependencyInjection
         services.AddScoped<IApplicationService, ApplicationService>();
         services.AddScoped<IScoringService, ScoringService>();
         services.AddScoped<IScoringRule, AgeScoringRule>();
+        services.AddScoped<IScoringRule, EmploymentLengthScoringRule>();
+        services.AddScoped<IScoringRule, DebtToIncomeScoringRule>();
+        services.AddScoped<IScoringRule, LoanToIncomeScoringRule>();
+        services.AddScoped<IScoringRule, DependentsScoringRule>();
+        services.AddScoped<IScoringRule, MortgageDownPaymentScoringRule>();
 
         return services;
     }

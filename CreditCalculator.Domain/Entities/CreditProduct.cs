@@ -12,5 +12,6 @@ public class CreditProduct
     public int MinTermMonths { get; set; }
     public int MaxTermMonths { get; set; }
     public decimal BaseRate { get; set; }
+    public bool IsBelarusianMade { get; set; }
     public bool IsActive { get; set; }
 }

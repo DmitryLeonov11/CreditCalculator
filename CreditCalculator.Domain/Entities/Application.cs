@@ -19,6 +19,9 @@ public class Application
     public decimal? IncomeAtApply { get; set; }
     public decimal? ExistingPaymentsAtApply { get; set; }
     public int? AgeAtApply { get; set; }
+    public int? EmploymentMonthsAtApply { get; set; }
+    public int? DependentsAtApply { get; set; }
+    public decimal? DownPaymentAmountAtApply { get; set; }
     public DateOnly? BirthDateAtApply { get; set; }
     public Gender? GenderAtApply { get; set; }
 
@@ -105,12 +108,23 @@ public class Application
         return entry;
     }
 
-    public void ApplySnapshot(decimal income, decimal existingPayments, int age, DateOnly birthDate, Gender? gender)
+    public void ApplySnapshot(
+        decimal income,
+        decimal existingPayments,
+        int age,
+        DateOnly birthDate,
+        Gender? gender,
+        int employmentMonths,
+        int dependents,
+        decimal? downPaymentAmount)
     {
         IncomeAtApply = income;
         ExistingPaymentsAtApply = existingPayments;
         AgeAtApply = age;
         BirthDateAtApply = birthDate;
         GenderAtApply = gender;
+        EmploymentMonthsAtApply = employmentMonths;
+        DependentsAtApply = dependents;
+        DownPaymentAmountAtApply = downPaymentAmount;
     }
 }

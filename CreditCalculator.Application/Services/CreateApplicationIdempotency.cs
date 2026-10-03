@@ -15,7 +15,8 @@ internal static class CreateApplicationIdempotency
             '\n',
             request.CreditProductId.ToString("N"),
             request.Amount.ToString(CultureInfo.InvariantCulture),
-            request.TermMonths.ToString(CultureInfo.InvariantCulture));
+            request.TermMonths.ToString(CultureInfo.InvariantCulture),
+            request.DownPaymentAmount?.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(payload));
         return Convert.ToHexString(bytes);
     }
