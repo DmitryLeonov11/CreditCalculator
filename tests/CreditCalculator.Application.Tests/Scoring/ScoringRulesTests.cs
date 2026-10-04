@@ -15,15 +15,17 @@ public class EmploymentLengthScoringRuleTests
 
     [Theory]
     [InlineData(2, false, 0)]
-    [InlineData(3, true, 0)]
-    [InlineData(24, true, 0)]
-    [InlineData(25, true, 10)]
+    [InlineData(3, true, 10)]
+    [InlineData(24, true, 10)]
+    [InlineData(25, true, 15)]
     public void Evaluate_UsesMinimumAndBonusBoundaries(int months, bool passed, int points)
     {
         var result = _rule.Evaluate(new ApplicationEntity { EmploymentMonthsAtApply = months });
 
         result.Passed.Should().Be(passed);
         result.Points.Should().Be(points);
+        if (!passed)
+            result.IsStopRule.Should().BeTrue();
     }
 }
 
@@ -36,10 +38,10 @@ public class DebtToIncomeScoringRuleTests
     };
 
     [Theory]
-    [InlineData(false, 4000, 0, true, 20)]
-    [InlineData(false, 2500, 0, true, 10)]
+    [InlineData(false, 4000, 0, true, 40)]
+    [InlineData(false, 2500, 0, true, 25)]
     [InlineData(false, 2500, 1, false, 0)]
-    [InlineData(true, 2000, 0, true, 10)]
+    [InlineData(true, 2000, 0, true, 25)]
     [InlineData(true, 2000, 1, false, 0)]
     public void Evaluate_UsesConfiguredProductThreshold(
         bool belarusianMade,
@@ -56,6 +58,23 @@ public class DebtToIncomeScoringRuleTests
 
         result.Passed.Should().Be(passed);
         result.Points.Should().Be(points);
+        if (!passed)
+            result.IsStopRule.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(false, 2500)]
+    [InlineData(true, 2000)]
+    public void Evaluate_ExactRegulatoryPdnLimitIsAllowed(bool belarusianMade, int income)
+    {
+        var application = CreateApplication(income, existingPayments: 0m);
+        application.CreditProduct.IsBelarusianMade = belarusianMade;
+
+        var result = new DebtToIncomeScoringRule(Microsoft.Extensions.Options.Options.Create(_options)).Evaluate(application);
+
+        result.Passed.Should().BeTrue();
+        result.IsStopRule.Should().BeFalse();
+        result.Points.Should().Be(25);
     }
 
     [Fact]
@@ -87,7 +106,7 @@ public class LoanToIncomeScoringRuleTests
     private readonly LoanToIncomeScoringRule _rule = new();
 
     [Theory]
-    [InlineData(1000, true, 0)]
+    [InlineData(1000, true, 20)]
     [InlineData(999, true, -10)]
     public void Evaluate_AppliesPenaltyOnlyAboveTwelveIncomes(int income, bool passed, int points)
     {
@@ -111,6 +130,18 @@ public class DependentsScoringRuleTests
         result.Passed.Should().BeTrue();
         result.Points.Should().Be(0);
         result.Details.Should().Contain("1000.00 BYN").And.Contain("1500.00 BYN");
+    }
+
+    [Fact]
+    public void Evaluate_ZeroDependentsDoesNotReduceIncome()
+    {
+        var rule = new DependentsScoringRule(Microsoft.Extensions.Options.Options.Create(new ScoringOptions { MinimumLivingWageByn = 500m }));
+        var application = new ApplicationEntity { IncomeAtApply = 2500m, DependentsAtApply = 0 };
+
+        var result = rule.Evaluate(application);
+
+        result.Passed.Should().BeTrue();
+        result.Details.Should().Contain("вычет — 0.00 BYN").And.Contain("доступный доход — 2500.00 BYN");
     }
 }
 

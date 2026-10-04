@@ -55,17 +55,25 @@ public class ApplicationsTests
         application.Amount.Should().Be(20_000m);
         application.TermMonths.Should().Be(24);
         application.InterestRate.Should().Be(product.BaseRate);
-        application.Status.Should().Be("Submitted");
+        application.Status.Should().Be("Rejected");
+        application.Score.Should().BeInRange(0, 100);
         application.IncomeAtApply.Should().Be(2500.50m);
         application.ExistingPaymentsAtApply.Should().Be(300m);
         application.AgeAtApply.Should().Be(36);
         await using var scope = _factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<IAppDbContext>();
-        var savedApplication = await dbContext.Applications.AsNoTracking().SingleAsync(item => item.Id == application.Id);
+        var savedApplication = await dbContext.Applications
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(item => item.StatusHistory)
+            .Include(item => item.ScoringResults)
+            .SingleAsync(item => item.Id == application.Id);
         savedApplication.BirthDateAtApply.Should().Be(new DateOnly(1990, 5, 15));
         savedApplication.GenderAtApply.Should().Be(Gender.Male);
-        application.StatusHistory.Should().ContainSingle()
-            .Which.Should().BeEquivalentTo(new TestStatusHistoryEntry(FromStatus: "Draft", ToStatus: "Submitted"));
+        savedApplication.Score.Should().Be(application.Score);
+        savedApplication.ScoringResults.Should().HaveCount(6);
+        application.StatusHistory.Select(entry => entry.ToStatus).Should().Equal("Submitted", "Scoring", "Rejected");
+        application.StatusHistory[0].FromStatus.Should().Be("Draft");
     }
 
     [Fact]
@@ -143,14 +151,22 @@ public class ApplicationsTests
     public async Task WithdrawApplication_ChangesStatusAndAddsHistory()
     {
         var client = await CreateClientWithProfileAsync();
+        var profileResponse = await client.PutAsJsonAsync("/api/v1/profile", ValidProfile with
+        {
+            MonthlyIncome = 3000m,
+            ExistingMonthlyPayments = 0m,
+            Dependents = 0
+        });
+        profileResponse.EnsureSuccessStatusCode();
         var product = await GetConsumerProductAsync(client);
         var createResponse = await client.PostAsJsonAsync(
             "/api/v1/applications",
-            new CreateApplicationRequest(product.Id, 10_000m, 12));
+            new CreateApplicationRequest(product.Id, 45_000m, 60));
         createResponse.EnsureSuccessStatusCode();
         var application = await createResponse.ReadAsAsync<TestApplication>();
+        application!.Status.Should().Be("UnderReview");
 
-        var withdrawResponse = await client.PostAsync($"/api/v1/applications/{application!.Id}/withdraw", content: null);
+        var withdrawResponse = await client.PostAsync($"/api/v1/applications/{application.Id}/withdraw", content: null);
 
         withdrawResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var withdrawn = await withdrawResponse.ReadAsAsync<TestApplication>();
@@ -276,6 +292,7 @@ public class ApplicationsTests
         int TermMonths,
         decimal InterestRate,
         string Status,
+        int? Score,
         decimal? IncomeAtApply,
         decimal? ExistingPaymentsAtApply,
         int? AgeAtApply,

@@ -20,7 +20,7 @@ public sealed class DependentsScoringRule : IScoringRule
         if (application.DependentsAtApply is not { } dependents
             || application.IncomeAtApply is not { } income)
         {
-            return new ScoringRuleResult(Code, "Иждивенцы", false, 0, "В снимке заявки отсутствуют данные о доходе или количестве иждивенцев.");
+            return new ScoringRuleResult(Code, "Иждивенцы", false, 0, "В снимке заявки отсутствуют данные о доходе или количестве иждивенцев.", IsStopRule: true);
         }
 
         var deduction = dependents * _options.MinimumLivingWageByn;

@@ -25,11 +25,11 @@ public sealed class DebtToIncomeScoringRule : IScoringRule
         if (application.ExistingPaymentsAtApply is not { } existingPayments
             || ScoringIncome.CalculateAvailableIncome(application, _options.MinimumLivingWageByn) is not { } availableIncome)
         {
-            return new ScoringRuleResult(Code, "Показатель долговой нагрузки", false, 0, "В снимке заявки отсутствуют необходимые данные об анкете.");
+            return new ScoringRuleResult(Code, "Показатель долговой нагрузки", false, 0, "В снимке заявки отсутствуют необходимые данные об анкете.", IsStopRule: true);
         }
 
         if (application.CreditProduct is null)
-            return new ScoringRuleResult(Code, "Показатель долговой нагрузки", false, 0, "В заявке отсутствует кредитный продукт.");
+            return new ScoringRuleResult(Code, "Показатель долговой нагрузки", false, 0, "В заявке отсутствует кредитный продукт.", IsStopRule: true);
 
         if (availableIncome <= 0m)
         {
@@ -38,7 +38,8 @@ public sealed class DebtToIncomeScoringRule : IScoringRule
                 "Показатель долговой нагрузки",
                 false,
                 0,
-                "Доступный доход после учёта иждивенцев не превышает ноль.");
+                "Доступный доход после учёта иждивенцев не превышает ноль.",
+                IsStopRule: true);
         }
 
         var monthlyPayment = AnnuityScheduleCalculator.CalculateMonthlyPayment(
@@ -57,10 +58,11 @@ public sealed class DebtToIncomeScoringRule : IScoringRule
                 "Показатель долговой нагрузки",
                 false,
                 0,
-                $"ПДН — {ratio.ToString("P1", CultureInfo.InvariantCulture)}; предельное значение — {limit.ToString("P0", CultureInfo.InvariantCulture)}.");
+                $"ПДН — {ratio.ToString("P1", CultureInfo.InvariantCulture)}; предельное значение — {limit.ToString("P0", CultureInfo.InvariantCulture)}.",
+                IsStopRule: true);
         }
 
-        var points = ratio <= MaximumScoringRatio ? MaximumRatioPoints : MediumRatioPoints;
+        var points = ratio <= MaximumScoringRatio ? MaximumRatioPoints + 20 : MediumRatioPoints + 15;
         var details = $"ПДН — {ratio.ToString("P1", CultureInfo.InvariantCulture)}; начислено {points} баллов. Доступный доход рассчитан с учётом иждивенцев.";
         return new ScoringRuleResult(Code, "Показатель долговой нагрузки", true, points, details);
     }

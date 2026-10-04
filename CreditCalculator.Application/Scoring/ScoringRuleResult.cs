@@ -5,4 +5,5 @@ public sealed record ScoringRuleResult(
     string RuleName,
     bool Passed,
     int Points,
-    string Details);
+    string Details,
+    bool IsStopRule = false);

@@ -13,13 +13,13 @@ public sealed class MortgageDownPaymentScoringRule : IScoringRule
     public ScoringRuleResult Evaluate(ApplicationEntity application)
     {
         if (application.CreditProduct is null)
-            return new ScoringRuleResult(Code, "Первоначальный взнос", false, 0, "В заявке отсутствует кредитный продукт.");
+            return new ScoringRuleResult(Code, "Первоначальный взнос", false, 0, "В заявке отсутствует кредитный продукт.", IsStopRule: true);
 
         if (application.CreditProduct.Purpose != CreditPurpose.Mortgage)
             return new ScoringRuleResult(Code, "Первоначальный взнос", true, 0, "Правило применяется только к ипотечным продуктам.");
 
         if (application.DownPaymentAmountAtApply is not { } downPayment || downPayment < 0m)
-            return new ScoringRuleResult(Code, "Первоначальный взнос", false, 0, "В снимке ипотечной заявки отсутствует корректная сумма первоначального взноса.");
+            return new ScoringRuleResult(Code, "Первоначальный взнос", false, 0, "В снимке ипотечной заявки отсутствует корректная сумма первоначального взноса.", IsStopRule: true);
 
         var propertyValue = application.Amount + downPayment;
         var ratio = propertyValue == 0m ? 0m : downPayment / propertyValue;

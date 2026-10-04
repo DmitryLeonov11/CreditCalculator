@@ -4,5 +4,5 @@ namespace CreditCalculator.Application.Scoring;
 
 public interface IScoringService
 {
-    IReadOnlyList<ScoringRuleResult> Evaluate(ApplicationEntity application);
+    ScoringEvaluation Evaluate(ApplicationEntity application);
 }

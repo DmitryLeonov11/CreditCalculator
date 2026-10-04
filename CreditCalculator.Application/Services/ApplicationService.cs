@@ -3,6 +3,7 @@ using ApplicationEntity = CreditCalculator.Domain.Entities.Application;
 using CreditCalculator.Application.Abstractions;
 using CreditCalculator.Application.Contracts;
 using CreditCalculator.Application.Exceptions;
+using CreditCalculator.Application.Scoring;
 using CreditCalculator.Domain.Entities;
 using CreditCalculator.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -13,11 +14,13 @@ public sealed class ApplicationService : IApplicationService
 {
     private readonly IAppDbContext _dbContext;
     private readonly TimeProvider _timeProvider;
+    private readonly IScoringService _scoringService;
 
-    public ApplicationService(IAppDbContext dbContext, TimeProvider timeProvider)
+    public ApplicationService(IAppDbContext dbContext, TimeProvider timeProvider, IScoringService scoringService)
     {
         _dbContext = dbContext;
         _timeProvider = timeProvider;
+        _scoringService = scoringService;
     }
 
     // Ставка фиксируется из справочника продукта, а не из запроса клиента:
@@ -58,7 +61,6 @@ public sealed class ApplicationService : IApplicationService
         }
 
         var product = await _dbContext.CreditProducts
-            .AsNoTracking()
             .FirstOrDefaultAsync(product => product.Id == request.CreditProductId && product.IsActive, cancellationToken)
             ?? throw new NotFoundException("Кредитный продукт не найден.");
 
@@ -99,6 +101,7 @@ public sealed class ApplicationService : IApplicationService
             Amount = request.Amount,
             TermMonths = request.TermMonths,
             InterestRate = product.BaseRate,
+            CreditProduct = product,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -112,9 +115,32 @@ public sealed class ApplicationService : IApplicationService
             profile.Dependents,
             request.DownPaymentAmount);
 
-        // Заявка создаётся в Draft и сразу переходит в Submitted через конечный автомат:
-        // в истории статусов с первого момента есть запись Draft → Submitted.
         application.ChangeStatus(ApplicationStatus.Submitted, userId);
+        application.ChangeStatus(ApplicationStatus.Scoring, userId);
+
+        var evaluation = _scoringService.Evaluate(application);
+        application.Score = evaluation.Score;
+        foreach (var result in evaluation.RuleResults)
+        {
+            application.ScoringResults.Add(new ScoringResult
+            {
+                Id = Guid.CreateVersion7(),
+                ApplicationId = application.Id,
+                RuleCode = result.RuleCode,
+                RuleName = result.RuleName,
+                Passed = result.Passed,
+                Points = result.Points,
+                Details = result.Details
+            });
+        }
+
+        application.ChangeStatus(evaluation.Decision switch
+        {
+            ScoringDecision.AutoApproved => ApplicationStatus.AutoApproved,
+            ScoringDecision.UnderReview => ApplicationStatus.UnderReview,
+            ScoringDecision.Rejected => ApplicationStatus.Rejected,
+            _ => throw new ArgumentOutOfRangeException(nameof(evaluation), evaluation.Decision, "Неизвестное решение скоринга.")
+        }, userId);
 
         _dbContext.Applications.Add(application);
         if (key is not null)
@@ -250,6 +276,7 @@ public sealed class ApplicationService : IApplicationService
         application.TermMonths,
         application.InterestRate,
         application.Status,
+        application.Score,
         application.IncomeAtApply,
         application.ExistingPaymentsAtApply,
         application.AgeAtApply,

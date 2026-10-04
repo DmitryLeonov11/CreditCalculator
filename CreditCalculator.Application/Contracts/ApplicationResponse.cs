@@ -10,6 +10,7 @@ public sealed record ApplicationResponse(
     int TermMonths,
     decimal InterestRate,
     ApplicationStatus Status,
+    int? Score,
     decimal? IncomeAtApply,
     decimal? ExistingPaymentsAtApply,
     int? AgeAtApply,

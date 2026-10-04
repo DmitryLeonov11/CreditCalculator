@@ -13,7 +13,7 @@ public sealed class AgeScoringRule : IScoringRule
     {
         if (application.BirthDateAtApply is not { } birthDate || application.GenderAtApply is not { } gender)
         {
-            return new ScoringRuleResult(Code, "Возраст клиента", false, 0, "В снимке заявки отсутствуют дата рождения или пол клиента.");
+            return new ScoringRuleResult(Code, "Возраст клиента", false, 0, "В снимке заявки отсутствуют дата рождения или пол клиента.", IsStopRule: true);
         }
 
         var appliedAt = DateOnly.FromDateTime(application.CreatedAt.UtcDateTime);
@@ -33,7 +33,7 @@ public sealed class AgeScoringRule : IScoringRule
                 ? $"Возраст на дату заявки — {ageAtApply} лет; минимальный возраст — {MinimumAge} лет."
                 : $"Срок кредита заканчивается {maturityDate:dd.MM.yyyy}, после достижения пенсионного возраста ({retirementAge} лет) {retirementDate:dd.MM.yyyy}.";
 
-        return new ScoringRuleResult(Code, "Возраст клиента", passed, 0, details);
+        return new ScoringRuleResult(Code, "Возраст клиента", passed, passed ? 25 : 0, details, IsStopRule: !passed);
     }
 
     private static int GetAgeOn(DateOnly birthDate, DateOnly date)

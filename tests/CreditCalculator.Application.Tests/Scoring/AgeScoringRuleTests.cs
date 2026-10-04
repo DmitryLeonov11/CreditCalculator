@@ -11,6 +11,18 @@ public class AgeScoringRuleTests
 {
     private readonly AgeScoringRule _rule = new();
 
+    [Theory]
+    [InlineData(2005, true)]
+    [InlineData(1961, false)]
+    public void Evaluate_AgeBoundaryIsApplied(int birthYear, bool passed)
+    {
+        var result = _rule.Evaluate(CreateApplication(new DateOnly(birthYear, 1, 1), Gender.Male, 12));
+
+        result.Passed.Should().Be(passed);
+        result.IsStopRule.Should().Be(!passed);
+        result.Points.Should().Be(passed ? 25 : 0);
+    }
+
     [Fact]
     public void Evaluate_ApplicantIsYoungerThan21_Fails()
     {
@@ -56,7 +68,7 @@ public class AgeScoringRuleTests
 
         result.Passed.Should().BeTrue();
         result.RuleCode.Should().Be(AgeScoringRule.Code);
-        result.Points.Should().Be(0);
+        result.Points.Should().Be(25);
     }
 
     [Fact]

@@ -14,6 +14,7 @@ public class Application
     public decimal InterestRate { get; set; }
 
     public ApplicationStatus Status { get; set; } = ApplicationStatus.Draft;
+    public int? Score { get; set; }
 
     // Снимок анкеты на момент подачи заявки
     public decimal? IncomeAtApply { get; set; }
