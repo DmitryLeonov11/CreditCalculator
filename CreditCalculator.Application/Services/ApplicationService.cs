@@ -4,6 +4,7 @@ using CreditCalculator.Application.Abstractions;
 using CreditCalculator.Application.Contracts;
 using CreditCalculator.Application.Exceptions;
 using CreditCalculator.Application.Scoring;
+using CreditCalculator.Calculations.Schedules;
 using CreditCalculator.Domain.Entities;
 using CreditCalculator.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -208,6 +209,102 @@ public sealed class ApplicationService : IApplicationService
             pageSize,
             totalCount,
             applications.Select(application => ToResponse(application)).ToList());
+    }
+
+    public async Task<PagedResponse<EmployeeApplicationListItemResponse>> GetEmployeePagedAsync(
+        EmployeeApplicationsQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        var applications = _dbContext.Applications
+            .AsNoTracking()
+            .Include(application => application.CreditProduct)
+            .AsQueryable();
+
+        if (query.MinAmount.HasValue)
+            applications = applications.Where(application => application.Amount >= query.MinAmount.Value);
+        if (query.MaxAmount.HasValue)
+            applications = applications.Where(application => application.Amount <= query.MaxAmount.Value);
+        if (query.CreatedFrom.HasValue)
+            applications = applications.Where(application => application.CreatedAt >= query.CreatedFrom.Value);
+        if (query.CreatedTo.HasValue)
+            applications = applications.Where(application => application.CreatedAt <= query.CreatedTo.Value);
+        if (query.MinScore.HasValue)
+            applications = applications.Where(application => application.Score.HasValue && application.Score.Value >= query.MinScore.Value);
+        if (query.MaxScore.HasValue)
+            applications = applications.Where(application => application.Score.HasValue && application.Score.Value <= query.MaxScore.Value);
+        if (query.Status.HasValue)
+            applications = applications.Where(application => application.Status == query.Status.Value);
+
+        var totalCount = await applications.CountAsync(cancellationToken);
+        var orderedApplications = (query.SortBy switch
+        {
+            EmployeeApplicationSortField.Amount => query.Descending
+                ? applications.OrderByDescending(application => application.Amount)
+                : applications.OrderBy(application => application.Amount),
+            EmployeeApplicationSortField.Score => query.Descending
+                ? applications.OrderByDescending(application => application.Score)
+                : applications.OrderBy(application => application.Score),
+            EmployeeApplicationSortField.Status => query.Descending
+                ? applications.OrderByDescending(application => application.Status)
+                : applications.OrderBy(application => application.Status),
+            _ => query.Descending
+                ? applications.OrderByDescending(application => application.CreatedAt)
+                : applications.OrderBy(application => application.CreatedAt)
+        }).ThenBy(application => application.Id);
+
+        var items = await orderedApplications
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .Select(application => new EmployeeApplicationListItemResponse(
+                application.Id,
+                application.CreditProductId,
+                application.CreditProduct.Name,
+                application.Amount,
+                application.TermMonths,
+                application.InterestRate,
+                application.Status,
+                application.Score,
+                application.CreatedAt))
+            .ToListAsync(cancellationToken);
+
+        return new PagedResponse<EmployeeApplicationListItemResponse>(
+            query.Page,
+            query.PageSize,
+            totalCount,
+            items);
+    }
+
+    public async Task<EmployeeApplicationDetailsResponse> GetEmployeeByIdAsync(
+        Guid applicationId,
+        CancellationToken cancellationToken = default)
+    {
+        var application = await _dbContext.Applications
+            .AsNoTracking()
+            .Include(item => item.StatusHistory)
+            .Include(item => item.CreditProduct)
+            .Include(item => item.ScoringResults)
+            .FirstOrDefaultAsync(item => item.Id == applicationId, cancellationToken)
+            ?? throw new NotFoundException("Заявка не найдена.");
+
+        var firstPaymentDate = DateOnly.FromDateTime(application.CreatedAt.UtcDateTime).AddMonths(1);
+        var schedule = AnnuityScheduleCalculator.BuildSchedule(
+            application.Amount,
+            application.InterestRate,
+            application.TermMonths,
+            firstPaymentDate);
+
+        return new EmployeeApplicationDetailsResponse(
+            ToResponse(application),
+            application.ScoringResults
+                .OrderBy(result => result.RuleCode)
+                .Select(result => new EmployeeScoringResultResponse(
+                    result.RuleCode,
+                    result.RuleName,
+                    result.Passed,
+                    result.Points,
+                    result.Details))
+                .ToList(),
+            new ProposedPaymentScheduleResponse(firstPaymentDate, schedule));
     }
 
     public async Task<ApplicationResponse> GetByIdAsync(

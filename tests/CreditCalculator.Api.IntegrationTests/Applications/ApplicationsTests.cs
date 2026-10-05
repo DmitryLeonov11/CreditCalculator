@@ -260,6 +260,77 @@ public class ApplicationsTests
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task GetEmployeeApplications_FiltersSortsAndPaginates()
+    {
+        var client = await CreateClientWithProfileAsync();
+        var product = await GetConsumerProductAsync(client);
+        var created = new List<TestApplication>();
+        foreach (var amount in new[] { 8_000m, 12_000m, 15_000m })
+        {
+            var response = await client.PostAsJsonAsync(
+                "/api/v1/applications",
+                new CreateApplicationRequest(product.Id, amount, 24));
+            response.EnsureSuccessStatusCode();
+            created.Add((await response.ReadAsAsync<TestApplication>())!);
+        }
+
+        var employee = await CreateEmployeeClientAsync();
+        var from = Uri.EscapeDataString(created[0].CreatedAt.ToString("O"));
+        var to = Uri.EscapeDataString(created[^1].CreatedAt.ToString("O"));
+        var page = await (await employee.GetAsync(
+            $"/api/v1/employee/applications?minAmount=8000&maxAmount=15000&createdFrom={from}&createdTo={to}&minScore=0&maxScore=100&sortBy=Amount&descending=false&page=1&pageSize=2"))
+            .ReadAsAsync<TestPagedEmployeeApplication>();
+
+        page.Should().NotBeNull();
+        page!.TotalCount.Should().Be(3);
+        page.Page.Should().Be(1);
+        page.PageSize.Should().Be(2);
+        page.Items.Select(item => item.Amount).Should().Equal(8_000m, 12_000m);
+
+        var exactFilter = await (await employee.GetAsync(
+            $"/api/v1/employee/applications?minAmount={created[1].Amount}&maxAmount={created[1].Amount}&minScore={created[1].Score}&maxScore={created[1].Score}&status={created[1].Status}&sortBy=CreatedAt&createdFrom={Uri.EscapeDataString(created[1].CreatedAt.ToString("O"))}&createdTo={Uri.EscapeDataString(created[1].CreatedAt.ToString("O"))}"))
+            .ReadAsAsync<TestPagedEmployeeApplication>();
+        exactFilter!.TotalCount.Should().Be(1);
+        exactFilter.Items.Single().Id.Should().Be(created[1].Id);
+    }
+
+    [Fact]
+    public async Task GetEmployeeApplication_ReturnsScoringBreakdownAndProposedSchedule()
+    {
+        var client = await CreateClientWithProfileAsync();
+        var product = await GetConsumerProductAsync(client);
+        var createResponse = await client.PostAsJsonAsync(
+            "/api/v1/applications",
+            new CreateApplicationRequest(product.Id, 10_000m, 12));
+        createResponse.EnsureSuccessStatusCode();
+        var application = (await createResponse.ReadAsAsync<TestApplication>())!;
+
+        var employee = await CreateEmployeeClientAsync();
+        var response = await employee.GetAsync($"/api/v1/employee/applications/{application.Id}");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var details = await response.ReadAsAsync<TestEmployeeApplicationDetails>();
+
+        details.Should().NotBeNull();
+        details!.Application.Id.Should().Be(application.Id);
+        details.ScoringResults.Should().HaveCount(6);
+        details.ProposedSchedule.Schedule.Payments.Should().HaveCount(application.TermMonths);
+        details.ProposedSchedule.FirstPaymentDate.Should().Be(DateOnly.FromDateTime(application.CreatedAt.UtcDateTime).AddMonths(1));
+        details.ProposedSchedule.Schedule.Payments[^1].RemainingBalance.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task EmployeeApplicationEndpoints_RejectClientRole()
+    {
+        var client = await CreateClientWithProfileAsync();
+
+        var listResponse = await client.GetAsync("/api/v1/employee/applications");
+        var detailResponse = await client.GetAsync($"/api/v1/employee/applications/{Guid.NewGuid()}");
+
+        listResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        detailResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
     private async Task<HttpClient> CreateClientWithProfileAsync()
     {
         var client = _factory.CreateClient();
@@ -268,6 +339,13 @@ public class ApplicationsTests
         var profileResponse = await client.PutAsJsonAsync("/api/v1/profile", ValidProfile);
         profileResponse.EnsureSuccessStatusCode();
 
+        return client;
+    }
+
+    private async Task<HttpClient> CreateEmployeeClientAsync()
+    {
+        var client = _factory.CreateClient();
+        client.Authorize(await client.LoginAndReadTokensAsync(ApiFactory.SeededEmployeeEmail, ApiFactory.SeededEmployeePassword));
         return client;
     }
 
@@ -296,9 +374,43 @@ public class ApplicationsTests
         decimal? IncomeAtApply,
         decimal? ExistingPaymentsAtApply,
         int? AgeAtApply,
-        List<TestStatusHistoryEntry> StatusHistory);
+        List<TestStatusHistoryEntry> StatusHistory,
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
 
     private sealed record TestStatusHistoryEntry(string? FromStatus, string ToStatus);
+
+    private sealed record TestPagedEmployeeApplication(
+        int Page,
+        int PageSize,
+        int TotalCount,
+        List<TestEmployeeApplicationListItem> Items);
+
+    private sealed record TestEmployeeApplicationListItem(
+        Guid Id,
+        decimal Amount,
+        string Status,
+        int? Score,
+        DateTimeOffset CreatedAt);
+
+    private sealed record TestEmployeeApplicationDetails(
+        TestApplication Application,
+        List<TestEmployeeScoringResult> ScoringResults,
+        TestProposedPaymentSchedule ProposedSchedule);
+
+    private sealed record TestEmployeeScoringResult(string RuleCode, string RuleName, bool Passed, int Points, string Details);
+
+    private sealed record TestProposedPaymentSchedule(DateOnly FirstPaymentDate, TestPaymentSchedule Schedule);
+
+    private sealed record TestPaymentSchedule(List<TestPaymentScheduleItem> Payments, decimal TotalPaid, decimal Overpayment);
+
+    private sealed record TestPaymentScheduleItem(
+        int Number,
+        DateOnly Date,
+        decimal Payment,
+        decimal InterestPart,
+        decimal PrincipalPart,
+        decimal RemainingBalance);
 
     private sealed record TestPagedApplication(
         int Page,

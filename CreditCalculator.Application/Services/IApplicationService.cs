@@ -16,6 +16,14 @@ public interface IApplicationService
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    Task<PagedResponse<EmployeeApplicationListItemResponse>> GetEmployeePagedAsync(
+        EmployeeApplicationsQuery query,
+        CancellationToken cancellationToken = default);
+
+    Task<EmployeeApplicationDetailsResponse> GetEmployeeByIdAsync(
+        Guid applicationId,
+        CancellationToken cancellationToken = default);
+
     Task<ApplicationResponse> GetByIdAsync(
         Guid userId,
         Guid applicationId,
