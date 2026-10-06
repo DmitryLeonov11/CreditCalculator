@@ -349,6 +349,86 @@ public sealed class ApplicationService : IApplicationService
         return ToResponse(application);
     }
 
+    public async Task<ApplicationResponse> ApproveAsync(
+        Guid employeeId,
+        Guid applicationId,
+        ApproveApplicationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var application = await _dbContext.Applications
+            .Include(application => application.StatusHistory)
+            .Include(application => application.CreditProduct)
+            .FirstOrDefaultAsync(application => application.Id == applicationId, cancellationToken)
+            ?? throw new NotFoundException("Заявка не найдена.");
+
+        if (application.Status is not (ApplicationStatus.UnderReview or ApplicationStatus.AutoApproved))
+            throw new BusinessRuleException("Заявку нельзя одобрить в текущем статусе.", HttpStatusCode.Conflict);
+
+        if (request.Amount < application.CreditProduct.MinAmount || request.Amount > application.CreditProduct.MaxAmount)
+            throw new BusinessRuleException("Сумма одобрения выходит за границы выбранного кредитного продукта.");
+
+        if (request.TermMonths < application.CreditProduct.MinTermMonths || request.TermMonths > application.CreditProduct.MaxTermMonths)
+            throw new BusinessRuleException("Срок одобрения выходит за границы выбранного кредитного продукта.");
+
+        var firstPaymentDate = DateOnly.FromDateTime(application.CreatedAt.UtcDateTime).AddMonths(1);
+        var calculatedSchedule = AnnuityScheduleCalculator.BuildSchedule(
+            request.Amount,
+            request.InterestRate,
+            request.TermMonths,
+            firstPaymentDate);
+
+        application.Amount = request.Amount;
+        application.TermMonths = request.TermMonths;
+        application.InterestRate = request.InterestRate;
+        application.ChangeStatus(ApplicationStatus.Approved, employeeId, request.Comment?.Trim());
+
+        var paymentSchedule = new CreditCalculator.Domain.Entities.PaymentSchedule
+        {
+            Id = Guid.CreateVersion7(),
+            ApplicationId = application.Id,
+            FirstPaymentDate = firstPaymentDate,
+            TotalPaid = calculatedSchedule.TotalPaid,
+            Overpayment = calculatedSchedule.Overpayment,
+            CreatedAt = _timeProvider.GetUtcNow(),
+            Payments = calculatedSchedule.Payments.Select(payment => new CreditCalculator.Domain.Entities.PaymentScheduleItem
+            {
+                Id = Guid.CreateVersion7(),
+                Number = payment.Number,
+                Date = payment.Date,
+                Payment = payment.Payment,
+                InterestPart = payment.InterestPart,
+                PrincipalPart = payment.PrincipalPart,
+                RemainingBalance = payment.RemainingBalance
+            }).ToList()
+        };
+
+        application.PaymentSchedule = paymentSchedule;
+        _dbContext.PaymentSchedules.Add(paymentSchedule);
+        _dbContext.ApplicationStatusHistories.Add(application.StatusHistory[^1]);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToResponse(application);
+    }
+
+    public async Task<ApplicationResponse> RejectAsync(
+        Guid employeeId,
+        Guid applicationId,
+        RejectApplicationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var application = await _dbContext.Applications
+            .Include(application => application.StatusHistory)
+            .Include(application => application.CreditProduct)
+            .FirstOrDefaultAsync(application => application.Id == applicationId, cancellationToken)
+            ?? throw new NotFoundException("Заявка не найдена.");
+
+        application.ChangeStatus(ApplicationStatus.Rejected, employeeId, request.Comment.Trim());
+        _dbContext.ApplicationStatusHistories.Add(application.StatusHistory[^1]);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToResponse(application);
+    }
+
     private static void EnsureMatchingRequestBody(IdempotencyKey existing, string requestHash)
     {
         if (!string.Equals(existing.RequestBodyHash, requestHash, StringComparison.Ordinal))

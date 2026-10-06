@@ -33,4 +33,16 @@ public interface IApplicationService
         Guid userId,
         Guid applicationId,
         CancellationToken cancellationToken = default);
+
+    Task<ApplicationResponse> ApproveAsync(
+        Guid employeeId,
+        Guid applicationId,
+        ApproveApplicationRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ApplicationResponse> RejectAsync(
+        Guid employeeId,
+        Guid applicationId,
+        RejectApplicationRequest request,
+        CancellationToken cancellationToken = default);
 }

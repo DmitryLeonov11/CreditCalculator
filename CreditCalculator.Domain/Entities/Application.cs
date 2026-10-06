@@ -36,6 +36,7 @@ public class Application
 
     public List<ApplicationStatusHistory> StatusHistory { get; set; } = [];
     public List<ScoringResult> ScoringResults { get; set; } = [];
+    public PaymentSchedule? PaymentSchedule { get; set; }
 
     public bool CanTransitionTo(ApplicationStatus targetStatus)
     {

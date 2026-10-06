@@ -13,6 +13,7 @@ public interface IAppDbContext
     DbSet<ApplicationStatusHistory> ApplicationStatusHistories { get; }
     DbSet<ScoringResult> ScoringResults { get; }
     DbSet<IdempotencyKey> IdempotencyKeys { get; }
+    DbSet<PaymentSchedule> PaymentSchedules { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -320,15 +320,100 @@ public class ApplicationsTests
     }
 
     [Fact]
+    public async Task ApproveApplication_UpdatesTermsAndPersistsPaymentSchedule()
+    {
+        var client = await CreateClientWithProfileAsync();
+        var application = await CreateUnderReviewApplicationAsync(client);
+        var employee = await CreateEmployeeClientAsync();
+        var request = new ApproveApplicationRequest(40_000m, 48, 12m, "Одобрено на изменённых условиях.");
+
+        var response = await employee.PostAsJsonAsync(
+            $"/api/v1/employee/applications/{application.Id}/approve",
+            request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var approved = await response.ReadAsAsync<TestApplication>();
+        approved.Should().NotBeNull();
+        approved!.Status.Should().Be("Approved");
+        approved.Amount.Should().Be(request.Amount);
+        approved.TermMonths.Should().Be(request.TermMonths);
+        approved.InterestRate.Should().Be(request.InterestRate);
+        approved.StatusHistory.Should().Contain(entry =>
+            entry.ToStatus == "Approved" && entry.Comment == request.Comment);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<IAppDbContext>();
+        var schedule = await dbContext.PaymentSchedules
+            .AsNoTracking()
+            .Include(item => item.Payments)
+            .SingleAsync(item => item.ApplicationId == application.Id);
+        schedule.FirstPaymentDate.Should().Be(DateOnly.FromDateTime(application.CreatedAt.UtcDateTime).AddMonths(1));
+        schedule.Payments.Should().HaveCount(request.TermMonths);
+        schedule.Payments.Sum(payment => payment.PrincipalPart).Should().Be(request.Amount);
+        schedule.Payments.OrderBy(payment => payment.Number).Last().RemainingBalance.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task RejectApplication_RequiresAndPersistsComment()
+    {
+        var client = await CreateClientWithProfileAsync();
+        var application = await CreateUnderReviewApplicationAsync(client);
+        var employee = await CreateEmployeeClientAsync();
+        var rejectUrl = $"/api/v1/employee/applications/{application.Id}/reject";
+
+        var invalidResponse = await employee.PostAsJsonAsync(rejectUrl, new RejectApplicationRequest(string.Empty));
+
+        invalidResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var unchanged = await (await client.GetAsync($"/api/v1/applications/{application.Id}"))
+            .ReadAsAsync<TestApplication>();
+        unchanged!.Status.Should().Be("UnderReview");
+
+        const string comment = "Недостаточный подтверждённый доход.";
+        var response = await employee.PostAsJsonAsync(rejectUrl, new RejectApplicationRequest(comment));
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var rejected = await response.ReadAsAsync<TestApplication>();
+        rejected!.Status.Should().Be("Rejected");
+        rejected.StatusHistory.Should().Contain(entry => entry.ToStatus == "Rejected" && entry.Comment == comment);
+    }
+
+    [Fact]
     public async Task EmployeeApplicationEndpoints_RejectClientRole()
     {
         var client = await CreateClientWithProfileAsync();
 
         var listResponse = await client.GetAsync("/api/v1/employee/applications");
         var detailResponse = await client.GetAsync($"/api/v1/employee/applications/{Guid.NewGuid()}");
+        var approveResponse = await client.PostAsJsonAsync(
+            $"/api/v1/employee/applications/{Guid.NewGuid()}/approve",
+            new ApproveApplicationRequest(10_000m, 12, 12m));
+        var rejectResponse = await client.PostAsJsonAsync(
+            $"/api/v1/employee/applications/{Guid.NewGuid()}/reject",
+            new RejectApplicationRequest("Недоступно клиенту."));
 
         listResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         detailResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        approveResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        rejectResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    private async Task<TestApplication> CreateUnderReviewApplicationAsync(HttpClient client)
+    {
+        var profileResponse = await client.PutAsJsonAsync("/api/v1/profile", ValidProfile with
+        {
+            MonthlyIncome = 3000m,
+            ExistingMonthlyPayments = 0m,
+            Dependents = 0
+        });
+        profileResponse.EnsureSuccessStatusCode();
+        var product = await GetConsumerProductAsync(client);
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/applications",
+            new CreateApplicationRequest(product.Id, 45_000m, 60));
+        response.EnsureSuccessStatusCode();
+        var application = (await response.ReadAsAsync<TestApplication>())!;
+        application.Status.Should().Be("UnderReview");
+        return application;
     }
 
     private async Task<HttpClient> CreateClientWithProfileAsync()
@@ -378,7 +463,7 @@ public class ApplicationsTests
         DateTimeOffset CreatedAt,
         DateTimeOffset UpdatedAt);
 
-    private sealed record TestStatusHistoryEntry(string? FromStatus, string ToStatus);
+    private sealed record TestStatusHistoryEntry(string? FromStatus, string ToStatus, string? Comment);
 
     private sealed record TestPagedEmployeeApplication(
         int Page,
