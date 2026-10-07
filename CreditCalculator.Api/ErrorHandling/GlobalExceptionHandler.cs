@@ -24,6 +24,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             NotFoundException => (StatusCodes.Status404NotFound, exception.Message),
             AuthenticationFailedException => (StatusCodes.Status401Unauthorized, exception.Message),
             Domain.Exceptions.BusinessRuleException businessRuleException => (businessRuleException.StatusCode, exception.Message),
+            DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "Заявка уже изменена другим сотрудником. Обновите данные и повторите попытку."),
             // Проверка «запись уже есть» и вставка — не атомарны: параллельный запрос упирается в уникальный индекс.
             DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } } =>
                 (StatusCodes.Status409Conflict, "Данные уже изменены другим запросом. Повторите попытку."),

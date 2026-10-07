@@ -4,10 +4,12 @@ using CreditCalculator.Application.Abstractions;
 using CreditCalculator.Application.Contracts;
 using CreditCalculator.Application.Exceptions;
 using CreditCalculator.Application.Scoring;
+using CreditCalculator.Calculations.Models;
 using CreditCalculator.Calculations.Schedules;
 using CreditCalculator.Domain.Entities;
 using CreditCalculator.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using CalculationPaymentScheduleItem = CreditCalculator.Calculations.Models.PaymentScheduleItem;
 
 namespace CreditCalculator.Application.Services;
 
@@ -307,6 +309,49 @@ public sealed class ApplicationService : IApplicationService
             new ProposedPaymentScheduleResponse(firstPaymentDate, schedule));
     }
 
+    public async Task<EmployeeStatisticsResponse> GetEmployeeStatisticsAsync(
+        DateTimeOffset? createdFrom,
+        DateTimeOffset? createdTo,
+        CancellationToken cancellationToken = default)
+    {
+        var periodTo = createdTo ?? _timeProvider.GetUtcNow();
+        var periodFrom = createdFrom ?? periodTo.AddDays(-30);
+        var applications = _dbContext.Applications
+            .AsNoTracking()
+            .Where(application => application.CreatedAt >= periodFrom && application.CreatedAt <= periodTo);
+
+        var totalApplications = await applications.CountAsync(cancellationToken);
+        var approvedApplications = await applications.CountAsync(
+            application => application.Status == ApplicationStatus.Approved
+                || application.Status == ApplicationStatus.AutoApproved,
+            cancellationToken);
+
+        decimal? averageAmount = null;
+        decimal? averageTermMonths = null;
+        decimal? approvalRate = null;
+        if (totalApplications > 0)
+        {
+            averageAmount = decimal.Round(
+                (await applications.AverageAsync(application => (decimal?)application.Amount, cancellationToken))!.Value,
+                2,
+                MidpointRounding.AwayFromZero);
+            averageTermMonths = decimal.Round(
+                (await applications.AverageAsync(application => (decimal?)application.TermMonths, cancellationToken))!.Value,
+                2,
+                MidpointRounding.AwayFromZero);
+            approvalRate = decimal.Round((decimal)approvedApplications / totalApplications * 100, 2);
+        }
+
+        return new EmployeeStatisticsResponse(
+            periodFrom,
+            periodTo,
+            totalApplications,
+            approvedApplications,
+            approvalRate,
+            averageAmount,
+            averageTermMonths);
+    }
+
     public async Task<ApplicationResponse> GetByIdAsync(
         Guid userId,
         Guid applicationId,
@@ -322,6 +367,41 @@ public sealed class ApplicationService : IApplicationService
             ?? throw new NotFoundException("Заявка не найдена.");
 
         return ToResponse(application);
+    }
+
+    public async Task<ApplicationScheduleResponse> GetScheduleAsync(
+        Guid userId,
+        Guid applicationId,
+        CancellationToken cancellationToken = default)
+    {
+        var application = await _dbContext.Applications
+            .AsNoTracking()
+            .Include(application => application.PaymentSchedule)
+            .ThenInclude(schedule => schedule!.Payments)
+            .FirstOrDefaultAsync(
+                application => application.Id == applicationId && application.UserId == userId,
+                cancellationToken)
+            ?? throw new NotFoundException("Заявка не найдена.");
+
+        if (application.Status != ApplicationStatus.Approved || application.PaymentSchedule is null)
+            throw new BusinessRuleException("График платежей доступен после одобрения заявки.", HttpStatusCode.Conflict);
+
+        var schedule = application.PaymentSchedule;
+        return new ApplicationScheduleResponse(
+            schedule.FirstPaymentDate,
+            new PaymentScheduleResult(
+                schedule.Payments
+                    .OrderBy(payment => payment.Number)
+                    .Select(payment => new CalculationPaymentScheduleItem(
+                        payment.Number,
+                        payment.Date,
+                        payment.Payment,
+                        payment.InterestPart,
+                        payment.PrincipalPart,
+                        payment.RemainingBalance))
+                    .ToList(),
+                schedule.TotalPaid,
+                schedule.Overpayment));
     }
 
     public async Task<ApplicationResponse> WithdrawAsync(

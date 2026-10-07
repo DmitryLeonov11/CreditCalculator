@@ -41,6 +41,10 @@ public sealed class ApplicationsController : ControllerBase
     public async Task<ActionResult<ApplicationResponse>> GetById(Guid id, CancellationToken cancellationToken) =>
         Ok(await _applicationService.GetByIdAsync(User.GetUserId(), id, cancellationToken));
 
+    [HttpGet("{id:guid}/schedule")]
+    public async Task<ActionResult<ApplicationScheduleResponse>> GetSchedule(Guid id, CancellationToken cancellationToken) =>
+        Ok(await _applicationService.GetScheduleAsync(User.GetUserId(), id, cancellationToken));
+
     [HttpPost("{id:guid}/withdraw")]
     public async Task<ActionResult<ApplicationResponse>> Withdraw(Guid id, CancellationToken cancellationToken) =>
         Ok(await _applicationService.WithdrawAsync(User.GetUserId(), id, cancellationToken));

@@ -24,7 +24,17 @@ public interface IApplicationService
         Guid applicationId,
         CancellationToken cancellationToken = default);
 
+    Task<EmployeeStatisticsResponse> GetEmployeeStatisticsAsync(
+        DateTimeOffset? createdFrom,
+        DateTimeOffset? createdTo,
+        CancellationToken cancellationToken = default);
+
     Task<ApplicationResponse> GetByIdAsync(
+        Guid userId,
+        Guid applicationId,
+        CancellationToken cancellationToken = default);
+
+    Task<ApplicationScheduleResponse> GetScheduleAsync(
         Guid userId,
         Guid applicationId,
         CancellationToken cancellationToken = default);

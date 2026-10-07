@@ -29,3 +29,7 @@ public sealed record EmployeeScoringResultResponse(
 public sealed record ProposedPaymentScheduleResponse(
     DateOnly FirstPaymentDate,
     PaymentScheduleResult Schedule);
+
+public sealed record ApplicationScheduleResponse(
+    DateOnly FirstPaymentDate,
+    PaymentScheduleResult Schedule);

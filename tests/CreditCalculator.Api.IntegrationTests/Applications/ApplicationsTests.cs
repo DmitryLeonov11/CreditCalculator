@@ -324,6 +324,9 @@ public class ApplicationsTests
     {
         var client = await CreateClientWithProfileAsync();
         var application = await CreateUnderReviewApplicationAsync(client);
+        var unavailableScheduleResponse = await client.GetAsync($"/api/v1/applications/{application.Id}/schedule");
+        unavailableScheduleResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
         var employee = await CreateEmployeeClientAsync();
         var request = new ApproveApplicationRequest(40_000m, 48, 12m, "Одобрено на изменённых условиях.");
 
@@ -351,6 +354,64 @@ public class ApplicationsTests
         schedule.Payments.Should().HaveCount(request.TermMonths);
         schedule.Payments.Sum(payment => payment.PrincipalPart).Should().Be(request.Amount);
         schedule.Payments.OrderBy(payment => payment.Number).Last().RemainingBalance.Should().Be(0m);
+
+        var scheduleResponse = await client.GetAsync($"/api/v1/applications/{application.Id}/schedule");
+        scheduleResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var persistedSchedule = await scheduleResponse.ReadAsAsync<TestApplicationSchedule>();
+        persistedSchedule.Should().NotBeNull();
+        persistedSchedule!.FirstPaymentDate.Should().Be(schedule.FirstPaymentDate);
+        persistedSchedule.Schedule.Payments.Should().HaveCount(request.TermMonths);
+        persistedSchedule.Schedule.TotalPaid.Should().Be(schedule.TotalPaid);
+
+        var stranger = await CreateClientWithProfileAsync();
+        var strangerResponse = await stranger.GetAsync($"/api/v1/applications/{application.Id}/schedule");
+        strangerResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task ConcurrentDecisionsOnSameApplication_ReturnConflictForOneRequest()
+    {
+        var client = await CreateClientWithProfileAsync();
+        var application = await CreateUnderReviewApplicationAsync(client);
+        var firstEmployee = await CreateEmployeeClientAsync();
+        var secondEmployee = await CreateEmployeeClientAsync();
+        var approveUrl = $"/api/v1/employee/applications/{application.Id}/approve";
+        var rejectUrl = $"/api/v1/employee/applications/{application.Id}/reject";
+
+        var responses = await Task.WhenAll(
+            firstEmployee.PostAsJsonAsync(approveUrl, new ApproveApplicationRequest(40_000m, 48, 12m, "Одобрено.")),
+            secondEmployee.PostAsJsonAsync(rejectUrl, new RejectApplicationRequest("Отклонено.")));
+
+        responses.Select(response => response.StatusCode).Should().ContainSingle(status => status == HttpStatusCode.OK);
+        responses.Select(response => response.StatusCode).Should().ContainSingle(status => status == HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task EmployeeStatistics_ReturnsAggregatesForSelectedPeriod()
+    {
+        var client = await CreateClientWithProfileAsync();
+        var firstApplication = await CreateUnderReviewApplicationAsync(client);
+        var secondApplication = await CreateUnderReviewApplicationAsync(client);
+        var employee = await CreateEmployeeClientAsync();
+
+        var approvalResponse = await employee.PostAsJsonAsync(
+            $"/api/v1/employee/applications/{firstApplication.Id}/approve",
+            new ApproveApplicationRequest(40_000m, 48, 12m, "Одобрено."));
+        approvalResponse.EnsureSuccessStatusCode();
+
+        var from = Uri.EscapeDataString(firstApplication.CreatedAt.ToString("O"));
+        var to = Uri.EscapeDataString(secondApplication.CreatedAt.ToString("O"));
+        var response = await employee.GetAsync($"/api/v1/employee/statistics?from={from}&to={to}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var statistics = await response.ReadAsAsync<TestEmployeeStatistics>();
+        statistics.Should().NotBeNull();
+        statistics!.TotalApplications.Should().Be(2);
+        statistics.ApprovedApplications.Should().Be(1);
+        statistics.ApprovalRate.Should().Be(50m);
+        statistics.AverageAmount.Should().Be(42_500m);
+        statistics.AverageTermMonths.Should().Be(54m);
+        secondApplication.Status.Should().Be("UnderReview");
     }
 
     [Fact]
@@ -390,11 +451,13 @@ public class ApplicationsTests
         var rejectResponse = await client.PostAsJsonAsync(
             $"/api/v1/employee/applications/{Guid.NewGuid()}/reject",
             new RejectApplicationRequest("Недоступно клиенту."));
+        var statisticsResponse = await client.GetAsync("/api/v1/employee/statistics");
 
         listResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         detailResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         approveResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         rejectResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        statisticsResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     private async Task<TestApplication> CreateUnderReviewApplicationAsync(HttpClient client)
@@ -496,6 +559,17 @@ public class ApplicationsTests
         decimal InterestPart,
         decimal PrincipalPart,
         decimal RemainingBalance);
+
+    private sealed record TestApplicationSchedule(DateOnly FirstPaymentDate, TestPaymentSchedule Schedule);
+
+    private sealed record TestEmployeeStatistics(
+        DateTimeOffset PeriodFrom,
+        DateTimeOffset PeriodTo,
+        int TotalApplications,
+        int ApprovedApplications,
+        decimal? ApprovalRate,
+        decimal? AverageAmount,
+        decimal? AverageTermMonths);
 
     private sealed record TestPagedApplication(
         int Page,
