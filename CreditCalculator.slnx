@@ -5,6 +5,51 @@
     <Project Path="tests/CreditCalculator.Calculations.Tests/CreditCalculator.Calculations.Tests.csproj" />
     <Project Path="tests/CreditCalculator.Domain.Tests/CreditCalculator.Domain.Tests.csproj" />
   </Folder>
+  <Folder Name="/client/">
+    <File Path="client/.gitignore" />
+    <File Path="client/.prettierrc.json" />
+    <File Path="client/eslint.config.js" />
+    <File Path="client/index.html" />
+    <File Path="client/package-lock.json" />
+    <File Path="client/package.json" />
+    <File Path="client/tsconfig.app.json" />
+    <File Path="client/tsconfig.json" />
+    <File Path="client/tsconfig.node.json" />
+    <File Path="client/vite.config.ts" />
+  </Folder>
+  <Folder Name="/client/src/">
+    <File Path="client/src/App.tsx" />
+    <File Path="client/src/index.css" />
+    <File Path="client/src/main.tsx" />
+    <File Path="client/src/vite-env.d.ts" />
+  </Folder>
+  <Folder Name="/client/src/api/">
+    <File Path="client/src/api/calculator.types.ts" />
+    <File Path="client/src/api/calculatorApi.ts" />
+    <File Path="client/src/api/httpClient.ts" />
+  </Folder>
+  <Folder Name="/client/src/components/">
+    <File Path="client/src/components/.gitkeep" />
+  </Folder>
+  <Folder Name="/client/src/features/" />
+  <Folder Name="/client/src/features/applications/">
+    <File Path="client/src/features/applications/.gitkeep" />
+  </Folder>
+  <Folder Name="/client/src/features/auth/">
+    <File Path="client/src/features/auth/.gitkeep" />
+  </Folder>
+  <Folder Name="/client/src/features/calculator/">
+    <File Path="client/src/features/calculator/.gitkeep" />
+  </Folder>
+  <Folder Name="/client/src/features/employee/">
+    <File Path="client/src/features/employee/.gitkeep" />
+  </Folder>
+  <Folder Name="/client/src/lib/">
+    <File Path="client/src/lib/.gitkeep" />
+  </Folder>
+  <Folder Name="/client/src/pages/">
+    <File Path="client/src/pages/.gitkeep" />
+  </Folder>
   <Project Path="CreditCalculator.Api/CreditCalculator.Api.csproj" />
   <Project Path="CreditCalculator.Application/CreditCalculator.Application.csproj" />
   <Project Path="CreditCalculator.Calculations/CreditCalculator.Calculations.csproj" />
