@@ -1,9 +1,7 @@
+import CalculatorPage from './features/calculator/CalculatorPage'
+
 function App() {
-  return (
-    <main>
-      <h1>Кредитный калькулятор</h1>
-    </main>
-  )
+  return <CalculatorPage />
 }
 
 export default App

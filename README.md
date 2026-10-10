@@ -6,14 +6,14 @@
 
 Секреты (пароль БД и ключ подписи JWT) в репозиторий не попадают. Для Docker Compose они берутся из файла `.env`, для `dotnet run` — из User Secrets.
 
-### Docker Compose (API + PostgreSQL)
+### Docker Compose (frontend + API + PostgreSQL)
 
 ```bash
 cp .env.example .env   # подставить POSTGRES_PASSWORD и JWT_SIGNING_KEY
 docker compose up --build
 ```
 
-API будет доступен на `http://localhost:8080`, PostgreSQL — на `localhost:5432`. Если эти порты заняты, задайте `API_PORT` и `DB_PORT` в `.env`.
+Фронтенд будет доступен на `http://localhost:3000`, API — на `http://localhost:8080`, PostgreSQL — на `localhost:5432`. Клиент обращается к API через Nginx внутри Compose. Если порты заняты, задайте `FRONTEND_PORT`, `API_PORT` и `DB_PORT` в `.env`.
 
 ### Локально через `dotnet run`
 

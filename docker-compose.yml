@@ -31,5 +31,15 @@ services:
       db:
         condition: service_healthy
 
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      api:
+        condition: service_started
+
 volumes:
   db-data:
