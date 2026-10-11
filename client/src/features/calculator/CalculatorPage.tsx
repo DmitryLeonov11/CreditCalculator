@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { PaymentType, ScheduleRequest } from '../../api/calculator.types'
 import { formatCurrency, formatDate, formatPercent } from '../../lib/formatters'
+import AuthNavigation from '../auth/AuthNavigation'
 import { useScheduleQuery } from './useCalculatorQueries'
 
 const EarlyRepaymentPanel = lazy(() => import('./EarlyRepaymentPanel'))
@@ -122,6 +123,7 @@ export default function CalculatorPage() {
 
   return (
     <main className="calculator-shell">
+      <AuthNavigation />
       <header className="page-header">
         <p className="eyebrow">Кредитный калькулятор</p>
         <h1>Рассчитайте кредит до подачи заявки</h1>
