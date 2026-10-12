@@ -4,7 +4,10 @@ import LoginPage from './features/auth/LoginPage'
 import RegisterPage from './features/auth/RegisterPage'
 import { RequireAuth, RequireRole } from './features/auth/RouteGuards'
 import type { UserRole } from './features/auth/authTypes'
+import ApplicationSubmissionPage from './features/applications/ApplicationSubmissionPage'
+import MyApplicationsPage from './features/applications/MyApplicationsPage'
 import CalculatorPage from './features/calculator/CalculatorPage'
+import ProfilePage from './features/profile/ProfilePage'
 
 function EmployeePlaceholder() {
   return (
@@ -18,6 +21,7 @@ function EmployeePlaceholder() {
 }
 
 function App() {
+  const clientRole: UserRole = 'Client'
   const employeeRole: UserRole = 'Employee'
 
   return (
@@ -26,6 +30,14 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route element={<RequireAuth />}>
+        <Route element={<RequireRole role={clientRole} />}>
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route
+            path="/applications/new"
+            element={<ApplicationSubmissionPage />}
+          />
+          <Route path="/applications" element={<MyApplicationsPage />} />
+        </Route>
         <Route element={<RequireRole role={employeeRole} />}>
           <Route path="/employee" element={<EmployeePlaceholder />} />
         </Route>

@@ -16,10 +16,18 @@ public sealed record ApplicationResponse(
     int? AgeAtApply,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    IReadOnlyList<ApplicationStatusHistoryResponse> StatusHistory);
+    IReadOnlyList<ApplicationStatusHistoryResponse> StatusHistory,
+    IReadOnlyList<ApplicationScoringResultResponse> ScoringResults);
 
 public sealed record ApplicationStatusHistoryResponse(
     ApplicationStatus? FromStatus,
     ApplicationStatus ToStatus,
     DateTimeOffset ChangedAt,
     string? Comment);
+
+public sealed record ApplicationScoringResultResponse(
+    string RuleCode,
+    string RuleName,
+    bool Passed,
+    int Points,
+    string Details);

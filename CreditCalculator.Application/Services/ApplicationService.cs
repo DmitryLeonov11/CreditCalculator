@@ -49,6 +49,7 @@ public sealed class ApplicationService : IApplicationService
                 .AsNoTracking()
                 .Include(idempotencyKey => idempotencyKey.Application.StatusHistory)
                 .Include(idempotencyKey => idempotencyKey.Application.CreditProduct)
+                .Include(idempotencyKey => idempotencyKey.Application.ScoringResults)
                 .FirstOrDefaultAsync(idempotencyKey => idempotencyKey.Key == key, cancellationToken);
             if (existing is not null)
             {
@@ -173,6 +174,7 @@ public sealed class ApplicationService : IApplicationService
                 .AsNoTracking()
                 .Include(idempotencyKey => idempotencyKey.Application.StatusHistory)
                 .Include(idempotencyKey => idempotencyKey.Application.CreditProduct)
+                .Include(idempotencyKey => idempotencyKey.Application.ScoringResults)
                 .FirstOrDefaultAsync(idempotencyKey => idempotencyKey.Key == key, cancellationToken);
             if (winner is not null && winner.UserId == userId)
             {
@@ -197,6 +199,7 @@ public sealed class ApplicationService : IApplicationService
             .AsNoTracking()
             .Include(application => application.StatusHistory)
             .Include(application => application.CreditProduct)
+            .Include(application => application.ScoringResults)
             .Where(application => application.UserId == userId)
             .OrderByDescending(application => application.CreatedAt);
 
@@ -361,6 +364,7 @@ public sealed class ApplicationService : IApplicationService
             .AsNoTracking()
             .Include(application => application.StatusHistory)
             .Include(application => application.CreditProduct)
+            .Include(application => application.ScoringResults)
             .FirstOrDefaultAsync(
                 application => application.Id == applicationId && application.UserId == userId,
                 cancellationToken)
@@ -412,6 +416,7 @@ public sealed class ApplicationService : IApplicationService
         var application = await _dbContext.Applications
             .Include(application => application.StatusHistory)
             .Include(application => application.CreditProduct)
+            .Include(application => application.ScoringResults)
             .FirstOrDefaultAsync(
                 application => application.Id == applicationId && application.UserId == userId,
                 cancellationToken)
@@ -546,5 +551,14 @@ public sealed class ApplicationService : IApplicationService
                 entry.ToStatus,
                 entry.ChangedAt,
                 entry.Comment))
+            .ToList(),
+        application.ScoringResults
+            .OrderBy(result => result.RuleCode)
+            .Select(result => new ApplicationScoringResultResponse(
+                result.RuleCode,
+                result.RuleName,
+                result.Passed,
+                result.Points,
+                result.Details))
             .ToList());
 }
