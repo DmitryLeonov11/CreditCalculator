@@ -3,7 +3,12 @@ import type {
   ApplicationResponse,
   ApplicationScheduleResponse,
   ApplicationsPageResponse,
+  ApproveApplicationRequest,
   CreateApplicationRequest,
+  EmployeeApplicationDetailsResponse,
+  EmployeeApplicationsPageResponse,
+  EmployeeApplicationsQuery,
+  RejectApplicationRequest,
 } from './applications.types'
 
 export const applicationsApi = {
@@ -43,6 +48,50 @@ export const applicationsApi = {
   async withdraw(id: string): Promise<ApplicationResponse> {
     const { data } = await httpClient.post<ApplicationResponse>(
       `/applications/${id}/withdraw`,
+    )
+    return data
+  },
+
+  async getEmployeePage(
+    query: EmployeeApplicationsQuery,
+    signal?: AbortSignal,
+  ): Promise<EmployeeApplicationsPageResponse> {
+    const { data } = await httpClient.get<EmployeeApplicationsPageResponse>(
+      '/employee/applications',
+      { params: query, signal },
+    )
+    return data
+  },
+
+  async getEmployeeById(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<EmployeeApplicationDetailsResponse> {
+    const { data } = await httpClient.get<EmployeeApplicationDetailsResponse>(
+      `/employee/applications/${id}`,
+      { signal },
+    )
+    return data
+  },
+
+  async approveEmployeeApplication(
+    id: string,
+    request: ApproveApplicationRequest,
+  ): Promise<ApplicationResponse> {
+    const { data } = await httpClient.post<ApplicationResponse>(
+      `/employee/applications/${id}/approve`,
+      request,
+    )
+    return data
+  },
+
+  async rejectEmployeeApplication(
+    id: string,
+    request: RejectApplicationRequest,
+  ): Promise<ApplicationResponse> {
+    const { data } = await httpClient.post<ApplicationResponse>(
+      `/employee/applications/${id}/reject`,
+      request,
     )
     return data
   },

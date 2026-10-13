@@ -1,5 +1,5 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import AuthNavigation from './features/auth/AuthNavigation'
 import LoginPage from './features/auth/LoginPage'
 import RegisterPage from './features/auth/RegisterPage'
 import { RequireAuth, RequireRole } from './features/auth/RouteGuards'
@@ -9,16 +9,9 @@ import MyApplicationsPage from './features/applications/MyApplicationsPage'
 import CalculatorPage from './features/calculator/CalculatorPage'
 import ProfilePage from './features/profile/ProfilePage'
 
-function EmployeePlaceholder() {
-  return (
-    <main className="route-message">
-      <AuthNavigation />
-      <p className="eyebrow">Рабочая область</p>
-      <h1>Кабинет сотрудника</h1>
-      <p>Раздел заявок сотрудника будет доступен на следующем этапе.</p>
-    </main>
-  )
-}
+const EmployeeCabinetPage = lazy(
+  () => import('./features/employee/EmployeeCabinetPage'),
+)
 
 function App() {
   const clientRole: UserRole = 'Client'
@@ -39,7 +32,20 @@ function App() {
           <Route path="/applications" element={<MyApplicationsPage />} />
         </Route>
         <Route element={<RequireRole role={employeeRole} />}>
-          <Route path="/employee" element={<EmployeePlaceholder />} />
+          <Route
+            path="/employee"
+            element={
+              <Suspense
+                fallback={
+                  <main className="route-message">
+                    Загружаем рабочую область…
+                  </main>
+                }
+              >
+                <EmployeeCabinetPage />
+              </Suspense>
+            }
+          />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
