@@ -1,5 +1,9 @@
 import { httpClient } from '../../api/httpClient'
-import type { AuthTokensResponse, LoginRequest, RegisterRequest } from './authTypes'
+import type {
+  AuthTokensResponse,
+  LoginRequest,
+  RegisterRequest,
+} from './authTypes'
 
 export const authApi = {
   async register(request: RegisterRequest): Promise<void> {

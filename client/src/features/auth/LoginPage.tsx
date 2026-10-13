@@ -9,7 +9,11 @@ import { getAuthErrorMessage } from './authErrors'
 import AuthPageLayout from './AuthPageLayout'
 
 const loginSchema = z.object({
-  email: z.string().trim().min(1, 'Укажите email.').email('Некорректный формат email.'),
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Укажите email.')
+    .email('Некорректный формат email.'),
   password: z.string().min(1, 'Укажите пароль.'),
 })
 
@@ -37,7 +41,12 @@ export default function LoginPage() {
       const state = location.state as { from?: { pathname?: string } } | null
       navigate(state?.from?.pathname ?? '/', { replace: true })
     } catch (error) {
-      setServerError(getAuthErrorMessage(error, 'Не удалось войти. Проверьте email и пароль.'))
+      setServerError(
+        getAuthErrorMessage(
+          error,
+          'Не удалось войти. Проверьте email и пароль.',
+        ),
+      )
     }
   }
 
@@ -45,7 +54,11 @@ export default function LoginPage() {
     <AuthPageLayout
       title="Войти в аккаунт"
       description="Введите данные, указанные при регистрации."
-      footer={<>Нет аккаунта? <Link to="/register">Зарегистрироваться</Link></>}
+      footer={
+        <>
+          Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
+        </>
+      }
     >
       <form className="auth-form" onSubmit={handleSubmit(onSubmit)} noValidate>
         <label className="auth-field" htmlFor="login-email">
@@ -58,7 +71,11 @@ export default function LoginPage() {
             aria-describedby={errors.email ? 'login-email-error' : undefined}
             {...register('email')}
           />
-          {errors.email && <span className="field-error" id="login-email-error">{errors.email.message}</span>}
+          {errors.email && (
+            <span className="field-error" id="login-email-error">
+              {errors.email.message}
+            </span>
+          )}
         </label>
         <label className="auth-field" htmlFor="login-password">
           Пароль
@@ -67,12 +84,22 @@ export default function LoginPage() {
             type="password"
             autoComplete="current-password"
             aria-invalid={Boolean(errors.password)}
-            aria-describedby={errors.password ? 'login-password-error' : undefined}
+            aria-describedby={
+              errors.password ? 'login-password-error' : undefined
+            }
             {...register('password')}
           />
-          {errors.password && <span className="field-error" id="login-password-error">{errors.password.message}</span>}
+          {errors.password && (
+            <span className="field-error" id="login-password-error">
+              {errors.password.message}
+            </span>
+          )}
         </label>
-        {serverError && <p className="auth-error" role="alert">{serverError}</p>}
+        {serverError && (
+          <p className="auth-error" role="alert">
+            {serverError}
+          </p>
+        )}
         <button className="auth-submit" type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Вход…' : 'Войти'}
         </button>

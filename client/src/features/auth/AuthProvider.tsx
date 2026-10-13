@@ -31,7 +31,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState(() => createSession(getStoredTokens()))
 
   useEffect(
-    () => subscribeToSessionChanges(() => setSession(createSession(getStoredTokens()))),
+    () =>
+      subscribeToSessionChanges(() =>
+        setSession(createSession(getStoredTokens())),
+      ),
     [],
   )
 

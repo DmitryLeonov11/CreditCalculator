@@ -3,6 +3,7 @@ import { AuthContext } from './authContext'
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (!context) throw new Error('useAuth должен вызываться внутри AuthProvider.')
+  if (!context)
+    throw new Error('useAuth должен вызываться внутри AuthProvider.')
   return context
 }

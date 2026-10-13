@@ -1,6 +1,10 @@
 import axios from 'axios'
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
-import { clearTokens, getStoredTokens, storeTokens } from '../features/auth/tokenStorage'
+import {
+  clearTokens,
+  getStoredTokens,
+  storeTokens,
+} from '../features/auth/tokenStorage'
 import type { AuthTokensResponse } from '../features/auth/authTypes'
 
 type RetriableRequestConfig = InternalAxiosRequestConfig & {
