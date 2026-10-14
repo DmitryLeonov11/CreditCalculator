@@ -1,4 +1,5 @@
 using CreditCalculator.Api.Contracts;
+using CreditCalculator.Api.Export;
 using CreditCalculator.Api.Mapping;
 using CreditCalculator.Calculations.Models;
 using CreditCalculator.Calculations.Schedules;
@@ -13,11 +14,24 @@ public sealed class CalculatorController : ControllerBase
     [HttpPost("schedule")]
     public ActionResult<ScheduleResponse> GetSchedule(ScheduleRequest request)
     {
-        var scheduleResult = request.PaymentType == PaymentType.Annuity
-            ? AnnuityScheduleCalculator.BuildSchedule(request.Amount, request.AnnualRatePercent, request.TermMonths, request.FirstPaymentDate)
-            : DifferentiatedScheduleCalculator.BuildSchedule(request.Amount, request.AnnualRatePercent, request.TermMonths, request.FirstPaymentDate);
-
+        var scheduleResult = BuildSchedule(request);
         return Ok(ScheduleResponseMapper.ToResponse(request.Amount, scheduleResult));
+    }
+
+    [HttpPost("schedule/pdf")]
+    public IActionResult ExportSchedulePdf(ScheduleRequest request)
+    {
+        var scheduleResult = BuildSchedule(request);
+        var pdf = PaymentSchedulePdfExporter.Generate("График платежей по кредиту", scheduleResult);
+        return File(pdf, "application/pdf", "payment-schedule.pdf");
+    }
+
+    [HttpPost("schedule/excel")]
+    public IActionResult ExportScheduleExcel(ScheduleRequest request)
+    {
+        var scheduleResult = BuildSchedule(request);
+        var excel = PaymentScheduleExcelExporter.Generate(scheduleResult);
+        return File(excel, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "payment-schedule.xlsx");
     }
 
     [HttpPost("early-repayment")]
@@ -42,4 +56,8 @@ public sealed class CalculatorController : ControllerBase
 
         return Ok(response);
     }
+
+    private static PaymentScheduleResult BuildSchedule(ScheduleRequest request) => request.PaymentType == PaymentType.Annuity
+        ? AnnuityScheduleCalculator.BuildSchedule(request.Amount, request.AnnualRatePercent, request.TermMonths, request.FirstPaymentDate)
+        : DifferentiatedScheduleCalculator.BuildSchedule(request.Amount, request.AnnualRatePercent, request.TermMonths, request.FirstPaymentDate);
 }

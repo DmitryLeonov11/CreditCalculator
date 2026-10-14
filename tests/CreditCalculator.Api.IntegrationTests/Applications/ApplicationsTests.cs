@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.IO.Compression;
 using CreditCalculator.Application.Abstractions;
 using CreditCalculator.Api.IntegrationTests.Fixtures;
 using CreditCalculator.Application.Contracts;
@@ -35,8 +36,10 @@ public class ApplicationsTests
     public async Task GetApplications_WithoutToken_ReturnsUnauthorized()
     {
         var response = await _client.GetAsync("/api/v1/applications");
+        var pdfResponse = await _client.GetAsync($"/api/v1/applications/{Guid.NewGuid()}/schedule/pdf");
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        pdfResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -325,7 +328,9 @@ public class ApplicationsTests
         var client = await CreateClientWithProfileAsync();
         var application = await CreateUnderReviewApplicationAsync(client);
         var unavailableScheduleResponse = await client.GetAsync($"/api/v1/applications/{application.Id}/schedule");
+        var unavailablePdfResponse = await client.GetAsync($"/api/v1/applications/{application.Id}/schedule/pdf");
         unavailableScheduleResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        unavailablePdfResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
         var employee = await CreateEmployeeClientAsync();
         var request = new ApproveApplicationRequest(40_000m, 48, 12m, "Одобрено на изменённых условиях.");
@@ -363,9 +368,32 @@ public class ApplicationsTests
         persistedSchedule.Schedule.Payments.Should().HaveCount(request.TermMonths);
         persistedSchedule.Schedule.TotalPaid.Should().Be(schedule.TotalPaid);
 
+        var pdfResponse = await client.GetAsync($"/api/v1/applications/{application.Id}/schedule/pdf");
+        pdfResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        pdfResponse.Content.Headers.ContentType?.MediaType.Should().Be("application/pdf");
+        pdfResponse.Content.Headers.ContentDisposition?.FileNameStar.Should().Contain("schedule.pdf");
+        var pdf = await pdfResponse.Content.ReadAsByteArrayAsync();
+        System.Text.Encoding.ASCII.GetString(pdf, 0, 5).Should().Be("%PDF-");
+
+        var excelResponse = await client.GetAsync($"/api/v1/applications/{application.Id}/schedule/excel");
+        excelResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        excelResponse.Content.Headers.ContentType?.MediaType.Should()
+            .Be("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        var excel = await excelResponse.Content.ReadAsByteArrayAsync();
+        await using (var excelStream = new MemoryStream(excel))
+        using (var archive = new ZipArchive(excelStream, ZipArchiveMode.Read))
+        {
+            archive.GetEntry("xl/worksheets/sheet1.xml").Should().NotBeNull();
+            archive.GetEntry("xl/workbook.xml").Should().NotBeNull();
+        }
+
         var stranger = await CreateClientWithProfileAsync();
         var strangerResponse = await stranger.GetAsync($"/api/v1/applications/{application.Id}/schedule");
+        var strangerPdfResponse = await stranger.GetAsync($"/api/v1/applications/{application.Id}/schedule/pdf");
+        var strangerExcelResponse = await stranger.GetAsync($"/api/v1/applications/{application.Id}/schedule/excel");
         strangerResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        strangerPdfResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        strangerExcelResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -452,12 +480,16 @@ public class ApplicationsTests
             $"/api/v1/employee/applications/{Guid.NewGuid()}/reject",
             new RejectApplicationRequest("Недоступно клиенту."));
         var statisticsResponse = await client.GetAsync("/api/v1/employee/statistics");
+        var schedulePdfResponse = await client.GetAsync($"/api/v1/applications/{Guid.NewGuid()}/schedule/pdf");
+        var scheduleExcelResponse = await client.GetAsync($"/api/v1/applications/{Guid.NewGuid()}/schedule/excel");
 
         listResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         detailResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         approveResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         rejectResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         statisticsResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        schedulePdfResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        scheduleExcelResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     private async Task<TestApplication> CreateUnderReviewApplicationAsync(HttpClient client)

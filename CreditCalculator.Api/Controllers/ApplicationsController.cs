@@ -1,5 +1,6 @@
 using CreditCalculator.Api.Authentication;
 using CreditCalculator.Api.Contracts;
+using CreditCalculator.Api.Export;
 using CreditCalculator.Application.Contracts;
 using CreditCalculator.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -44,6 +45,22 @@ public sealed class ApplicationsController : ControllerBase
     [HttpGet("{id:guid}/schedule")]
     public async Task<ActionResult<ApplicationScheduleResponse>> GetSchedule(Guid id, CancellationToken cancellationToken) =>
         Ok(await _applicationService.GetScheduleAsync(User.GetUserId(), id, cancellationToken));
+
+    [HttpGet("{id:guid}/schedule/pdf")]
+    public async Task<IActionResult> ExportSchedulePdf(Guid id, CancellationToken cancellationToken)
+    {
+        var response = await _applicationService.GetScheduleAsync(User.GetUserId(), id, cancellationToken);
+        var pdf = PaymentSchedulePdfExporter.Generate("График платежей по заявке", response.Schedule);
+        return File(pdf, "application/pdf", $"application-{id:N}-schedule.pdf");
+    }
+
+    [HttpGet("{id:guid}/schedule/excel")]
+    public async Task<IActionResult> ExportScheduleExcel(Guid id, CancellationToken cancellationToken)
+    {
+        var response = await _applicationService.GetScheduleAsync(User.GetUserId(), id, cancellationToken);
+        var excel = PaymentScheduleExcelExporter.Generate(response.Schedule);
+        return File(excel, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"application-{id:N}-schedule.xlsx");
+    }
 
     [HttpPost("{id:guid}/withdraw")]
     public async Task<ActionResult<ApplicationResponse>> Withdraw(Guid id, CancellationToken cancellationToken) =>

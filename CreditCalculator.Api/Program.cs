@@ -14,6 +14,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
+using QuestPDF.Infrastructure;
 
 namespace CreditCalculator
 {
@@ -22,6 +23,8 @@ namespace CreditCalculator
         public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            QuestPDF.Settings.License = LicenseType.Community;
 
             // Add services to the container.
 
