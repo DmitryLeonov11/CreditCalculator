@@ -3,9 +3,12 @@ import {
   ArrowRight,
   CheckCircle,
   ClockCounterClockwise,
+  FilePdf,
+  FileXls,
   FilePlus,
   XCircle,
 } from '@phosphor-icons/react'
+import { App as AntApp, Button, Space } from 'antd'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { applicationsApi } from '../../api/applicationsApi'
@@ -48,8 +51,12 @@ function getStatusClass(status: ApplicationStatus) {
 }
 
 function ApplicationDetails({ applicationId }: { applicationId: string }) {
+  const { message } = AntApp.useApp()
   const queryClient = useQueryClient()
   const [actionError, setActionError] = useState<string | null>(null)
+  const [downloadFormat, setDownloadFormat] = useState<'pdf' | 'excel' | null>(
+    null,
+  )
   const applicationQuery = useQuery({
     queryKey: ['application', applicationId],
     queryFn: () => applicationsApi.getById(applicationId),
@@ -69,6 +76,19 @@ function ApplicationDetails({ applicationId }: { applicationId: string }) {
     onError: (error) =>
       setActionError(getApiErrorMessage(error, 'Не удалось отозвать заявку.')),
   })
+
+  async function downloadSchedule(format: 'pdf' | 'excel') {
+    setDownloadFormat(format)
+    try {
+      if (format === 'pdf')
+        await applicationsApi.downloadSchedulePdf(applicationId)
+      else await applicationsApi.downloadScheduleExcel(applicationId)
+    } catch {
+      message.error('Не удалось скачать график платежей. Повторите попытку.')
+    } finally {
+      setDownloadFormat(null)
+    }
+  }
 
   if (applicationQuery.isPending) {
     return (
@@ -249,6 +269,24 @@ function ApplicationDetails({ applicationId }: { applicationId: string }) {
                 </strong>
               </div>
             </div>
+            <Space className="application-schedule-download-actions" wrap>
+              <Button
+                icon={<FilePdf size={17} />}
+                loading={downloadFormat === 'pdf'}
+                disabled={downloadFormat !== null}
+                onClick={() => void downloadSchedule('pdf')}
+              >
+                Скачать PDF
+              </Button>
+              <Button
+                icon={<FileXls size={17} />}
+                loading={downloadFormat === 'excel'}
+                disabled={downloadFormat !== null}
+                onClick={() => void downloadSchedule('excel')}
+              >
+                Скачать Excel
+              </Button>
+            </Space>
             <div className="preview-table-wrap">
               <table className="preview-table">
                 <thead>

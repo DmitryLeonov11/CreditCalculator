@@ -15,7 +15,9 @@ public sealed class AuthController : ControllerBase
     private readonly IAuthService _authService;
     private readonly PublicUrlOptions _publicUrlOptions;
 
-    public AuthController(IAuthService authService, IOptions<PublicUrlOptions> publicUrlOptions)
+    public AuthController(
+        IAuthService authService,
+        IOptions<PublicUrlOptions> publicUrlOptions)
     {
         _authService = authService;
         _publicUrlOptions = publicUrlOptions.Value;
@@ -44,8 +46,11 @@ public sealed class AuthController : ControllerBase
 
     [HttpPost("login")]
     [EnableRateLimiting(RateLimitingServiceCollectionExtensions.AuthPolicy)]
-    public async Task<ActionResult<AuthTokensResponse>> Login(LoginRequest request, CancellationToken cancellationToken) =>
-        Ok(await _authService.LoginAsync(request, cancellationToken));
+    public async Task<ActionResult<AuthTokensResponse>> Login(LoginRequest request, CancellationToken cancellationToken)
+    {
+        var tokens = await _authService.LoginAsync(request, cancellationToken);
+        return Ok(tokens);
+    }
 
     [HttpPost("refresh")]
     public async Task<ActionResult<AuthTokensResponse>> Refresh(RefreshTokenRequest request, CancellationToken cancellationToken) =>

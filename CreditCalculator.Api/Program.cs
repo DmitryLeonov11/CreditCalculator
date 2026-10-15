@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json.Serialization;
 using CreditCalculator.Api.Authentication;
 using CreditCalculator.Api.ErrorHandling;
+using CreditCalculator.Api.Middleware;
 using CreditCalculator.Api.Options;
 using CreditCalculator.Api.RateLimiting;
 using CreditCalculator.Api.Validation;
@@ -15,6 +16,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using QuestPDF.Infrastructure;
+using Serilog;
 
 namespace CreditCalculator
 {
@@ -23,6 +25,21 @@ namespace CreditCalculator
         public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            builder.Host.UseSerilog((context, loggerConfiguration) => loggerConfiguration
+                .MinimumLevel.Information()
+                .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", Serilog.Events.LogEventLevel.Warning)
+                .ReadFrom.Configuration(context.Configuration)
+                .Enrich.FromLogContext()
+                .Enrich.WithProperty("Application", "CreditCalculator.Api")
+                .WriteTo.Console(outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+                .WriteTo.File(
+                    "logs/creditcalculator-.log",
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 14,
+                    shared: true,
+                    outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}"));
 
             QuestPDF.Settings.License = LicenseType.Community;
 
@@ -65,6 +82,16 @@ namespace CreditCalculator
             var app = builder.Build();
 
             app.UseForwardedHeaders();
+            app.UseMiddleware<CorrelationIdMiddleware>();
+            app.UseSerilogRequestLogging(options =>
+            {
+                options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+                {
+                    diagnosticContext.Set("CorrelationId", httpContext.Response.Headers[CorrelationIdMiddleware.HeaderName].ToString());
+                    diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+                    diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
+                };
+            });
             app.UseExceptionHandler();
 
             // Configure the HTTP request pipeline.

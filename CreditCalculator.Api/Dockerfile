@@ -31,4 +31,7 @@ RUN dotnet publish "CreditCalculator.Api.csproj" -c $BUILD_CONFIGURATION -o /app
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+USER root
+RUN mkdir -p /app/logs && chown -R $APP_UID /app/logs
+USER $APP_UID
 ENTRYPOINT ["dotnet", "CreditCalculator.Api.dll"]

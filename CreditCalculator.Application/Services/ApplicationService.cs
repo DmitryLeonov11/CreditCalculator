@@ -9,6 +9,7 @@ using CreditCalculator.Calculations.Schedules;
 using CreditCalculator.Domain.Entities;
 using CreditCalculator.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using CalculationPaymentScheduleItem = CreditCalculator.Calculations.Models.PaymentScheduleItem;
 
 namespace CreditCalculator.Application.Services;
@@ -18,12 +19,21 @@ public sealed class ApplicationService : IApplicationService
     private readonly IAppDbContext _dbContext;
     private readonly TimeProvider _timeProvider;
     private readonly IScoringService _scoringService;
+    private readonly IEmailSender _emailSender;
+    private readonly ILogger<ApplicationService> _logger;
 
-    public ApplicationService(IAppDbContext dbContext, TimeProvider timeProvider, IScoringService scoringService)
+    public ApplicationService(
+        IAppDbContext dbContext,
+        TimeProvider timeProvider,
+        IScoringService scoringService,
+        IEmailSender emailSender,
+        ILogger<ApplicationService> logger)
     {
         _dbContext = dbContext;
         _timeProvider = timeProvider;
         _scoringService = scoringService;
+        _emailSender = emailSender;
+        _logger = logger;
     }
 
     // Ставка фиксируется из справочника продукта, а не из запроса клиента:
@@ -146,6 +156,11 @@ public sealed class ApplicationService : IApplicationService
             _ => throw new ArgumentOutOfRangeException(nameof(evaluation), evaluation.Decision, "Неизвестное решение скоринга.")
         }, userId);
 
+        var clientEmail = await _dbContext.Users
+            .Where(user => user.Id == userId)
+            .Select(user => user.Email)
+            .SingleAsync(cancellationToken);
+
         _dbContext.Applications.Add(application);
         if (key is not null)
         {
@@ -183,6 +198,16 @@ public sealed class ApplicationService : IApplicationService
             }
 
             throw;
+        }
+
+        _logger.LogInformation(
+            "Application {ApplicationId} submitted and scored with {Score}; decision: {Decision}",
+            application.Id,
+            evaluation.Score,
+            application.Status);
+        if (ShouldNotifyClient(application.Status))
+        {
+            await NotifyStatusChangeAsync(application, clientEmail, cancellationToken);
         }
 
         return Created(ToResponse(application, product.Name));
@@ -365,6 +390,7 @@ public sealed class ApplicationService : IApplicationService
             .Include(application => application.StatusHistory)
             .Include(application => application.CreditProduct)
             .Include(application => application.ScoringResults)
+            .Include(application => application.User)
             .FirstOrDefaultAsync(
                 application => application.Id == applicationId && application.UserId == userId,
                 cancellationToken)
@@ -417,6 +443,7 @@ public sealed class ApplicationService : IApplicationService
             .Include(application => application.StatusHistory)
             .Include(application => application.CreditProduct)
             .Include(application => application.ScoringResults)
+            .Include(application => application.User)
             .FirstOrDefaultAsync(
                 application => application.Id == applicationId && application.UserId == userId,
                 cancellationToken)
@@ -430,6 +457,8 @@ public sealed class ApplicationService : IApplicationService
         application.ChangeStatus(ApplicationStatus.Withdrawn, userId);
         _dbContext.ApplicationStatusHistories.Add(application.StatusHistory[^1]);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Application {ApplicationId} withdrawn by client {UserId}", applicationId, userId);
+        await NotifyStatusChangeAsync(application, application.User.Email, cancellationToken);
 
         return ToResponse(application);
     }
@@ -443,6 +472,7 @@ public sealed class ApplicationService : IApplicationService
         var application = await _dbContext.Applications
             .Include(application => application.StatusHistory)
             .Include(application => application.CreditProduct)
+            .Include(application => application.User)
             .FirstOrDefaultAsync(application => application.Id == applicationId, cancellationToken)
             ?? throw new NotFoundException("Заявка не найдена.");
 
@@ -491,6 +521,8 @@ public sealed class ApplicationService : IApplicationService
         _dbContext.PaymentSchedules.Add(paymentSchedule);
         _dbContext.ApplicationStatusHistories.Add(application.StatusHistory[^1]);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Application {ApplicationId} approved by employee {EmployeeId}", applicationId, employeeId);
+        await NotifyStatusChangeAsync(application, application.User.Email, cancellationToken);
 
         return ToResponse(application);
     }
@@ -504,15 +536,54 @@ public sealed class ApplicationService : IApplicationService
         var application = await _dbContext.Applications
             .Include(application => application.StatusHistory)
             .Include(application => application.CreditProduct)
+            .Include(application => application.User)
             .FirstOrDefaultAsync(application => application.Id == applicationId, cancellationToken)
             ?? throw new NotFoundException("Заявка не найдена.");
 
         application.ChangeStatus(ApplicationStatus.Rejected, employeeId, request.Comment.Trim());
         _dbContext.ApplicationStatusHistories.Add(application.StatusHistory[^1]);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Application {ApplicationId} rejected by employee {EmployeeId}", applicationId, employeeId);
+        await NotifyStatusChangeAsync(application, application.User.Email, cancellationToken);
 
         return ToResponse(application);
     }
+
+    private async Task NotifyStatusChangeAsync(
+        ApplicationEntity application,
+        string clientEmail,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _emailSender.SendAsync(
+                clientEmail,
+                $"Изменение статуса заявки №{application.Id.ToString("N")[..8]}",
+                $"Статус вашей заявки изменён: {GetStatusLabel(application.Status)}.",
+                cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            // The status change is already committed; an email failure must not make the client
+            // retry a successful decision or hide the committed result.
+            _logger.LogWarning(exception, "Could not notify the client about application {ApplicationId} status {Status}", application.Id, application.Status);
+        }
+    }
+
+    private static bool ShouldNotifyClient(ApplicationStatus status) => status is
+        ApplicationStatus.AutoApproved or
+        ApplicationStatus.UnderReview or
+        ApplicationStatus.Rejected;
+
+    private static string GetStatusLabel(ApplicationStatus status) => status switch
+    {
+        ApplicationStatus.AutoApproved => "предварительно одобрена",
+        ApplicationStatus.UnderReview => "передана на рассмотрение сотруднику",
+        ApplicationStatus.Approved => "одобрена",
+        ApplicationStatus.Rejected => "отклонена",
+        ApplicationStatus.Withdrawn => "отозвана",
+        _ => status.ToString()
+    };
 
     private static void EnsureMatchingRequestBody(IdempotencyKey existing, string requestHash)
     {

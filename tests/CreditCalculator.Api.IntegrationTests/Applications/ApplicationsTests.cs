@@ -45,7 +45,8 @@ public class ApplicationsTests
     [Fact]
     public async Task CreateApplication_ReturnsApplicationWithProductRateAndSnapshot()
     {
-        var client = await CreateClientWithProfileAsync();
+        var clientEmail = ApiClientExtensions.UniqueEmail();
+        var client = await CreateClientWithProfileAsync(clientEmail);
         var product = await GetConsumerProductAsync(client);
 
         var response = await client.PostAsJsonAsync("/api/v1/applications", new CreateApplicationRequest(product.Id, 20_000m, 24));
@@ -77,6 +78,8 @@ public class ApplicationsTests
         savedApplication.ScoringResults.Should().HaveCount(6);
         application.StatusHistory.Select(entry => entry.ToStatus).Should().Equal("Submitted", "Scoring", "Rejected");
         application.StatusHistory[0].FromStatus.Should().Be("Draft");
+        _factory.EmailSender.CountEmails(clientEmail).Should().Be(2);
+        _factory.EmailSender.HasEmailContaining(clientEmail, "отклонена").Should().BeTrue();
     }
 
     [Fact]
@@ -153,7 +156,8 @@ public class ApplicationsTests
     [Fact]
     public async Task WithdrawApplication_ChangesStatusAndAddsHistory()
     {
-        var client = await CreateClientWithProfileAsync();
+        var clientEmail = ApiClientExtensions.UniqueEmail();
+        var client = await CreateClientWithProfileAsync(clientEmail);
         var profileResponse = await client.PutAsJsonAsync("/api/v1/profile", ValidProfile with
         {
             MonthlyIncome = 3000m,
@@ -175,6 +179,8 @@ public class ApplicationsTests
         var withdrawn = await withdrawResponse.ReadAsAsync<TestApplication>();
         withdrawn!.Status.Should().Be("Withdrawn");
         withdrawn.StatusHistory.Should().Contain(entry => entry.ToStatus == "Withdrawn");
+        _factory.EmailSender.CountEmails(clientEmail).Should().Be(3);
+        _factory.EmailSender.HasEmailContaining(clientEmail, "отозвана").Should().BeTrue();
     }
 
     [Fact]
@@ -325,8 +331,10 @@ public class ApplicationsTests
     [Fact]
     public async Task ApproveApplication_UpdatesTermsAndPersistsPaymentSchedule()
     {
-        var client = await CreateClientWithProfileAsync();
+        var clientEmail = ApiClientExtensions.UniqueEmail();
+        var client = await CreateClientWithProfileAsync(clientEmail);
         var application = await CreateUnderReviewApplicationAsync(client);
+        _factory.EmailSender.CountEmails(clientEmail).Should().Be(2);
         var unavailableScheduleResponse = await client.GetAsync($"/api/v1/applications/{application.Id}/schedule");
         var unavailablePdfResponse = await client.GetAsync($"/api/v1/applications/{application.Id}/schedule/pdf");
         unavailableScheduleResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -348,6 +356,8 @@ public class ApplicationsTests
         approved.InterestRate.Should().Be(request.InterestRate);
         approved.StatusHistory.Should().Contain(entry =>
             entry.ToStatus == "Approved" && entry.Comment == request.Comment);
+        _factory.EmailSender.CountEmails(clientEmail).Should().Be(3);
+        _factory.EmailSender.HasEmailContaining(clientEmail, "одобрена").Should().BeTrue();
 
         await using var scope = _factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<IAppDbContext>();
@@ -445,7 +455,8 @@ public class ApplicationsTests
     [Fact]
     public async Task RejectApplication_RequiresAndPersistsComment()
     {
-        var client = await CreateClientWithProfileAsync();
+        var clientEmail = ApiClientExtensions.UniqueEmail();
+        var client = await CreateClientWithProfileAsync(clientEmail);
         var application = await CreateUnderReviewApplicationAsync(client);
         var employee = await CreateEmployeeClientAsync();
         var rejectUrl = $"/api/v1/employee/applications/{application.Id}/reject";
@@ -464,6 +475,8 @@ public class ApplicationsTests
         var rejected = await response.ReadAsAsync<TestApplication>();
         rejected!.Status.Should().Be("Rejected");
         rejected.StatusHistory.Should().Contain(entry => entry.ToStatus == "Rejected" && entry.Comment == comment);
+        _factory.EmailSender.CountEmails(clientEmail).Should().Be(3);
+        _factory.EmailSender.HasEmailContaining(clientEmail, "отклонена").Should().BeTrue();
     }
 
     [Fact]
@@ -511,10 +524,10 @@ public class ApplicationsTests
         return application;
     }
 
-    private async Task<HttpClient> CreateClientWithProfileAsync()
+    private async Task<HttpClient> CreateClientWithProfileAsync(string? email = null)
     {
         var client = _factory.CreateClient();
-        client.Authorize(await client.RegisterConfirmedClientAsync(_factory, ApiClientExtensions.UniqueEmail()));
+        client.Authorize(await client.RegisterConfirmedClientAsync(_factory, email ?? ApiClientExtensions.UniqueEmail()));
 
         var profileResponse = await client.PutAsJsonAsync("/api/v1/profile", ValidProfile);
         profileResponse.EnsureSuccessStatusCode();

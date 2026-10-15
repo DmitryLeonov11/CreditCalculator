@@ -8,6 +8,7 @@ using CreditCalculator.Application.Options;
 using CreditCalculator.Domain.Entities;
 using CreditCalculator.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace CreditCalculator.Application.Services;
@@ -21,6 +22,7 @@ public sealed class AuthService : IAuthService
     private readonly IEmailSender _emailSender;
     private readonly TimeProvider _timeProvider;
     private readonly JwtOptions _jwtOptions;
+    private readonly ILogger<AuthService> _logger;
 
     public AuthService(
         IAppDbContext dbContext,
@@ -29,7 +31,8 @@ public sealed class AuthService : IAuthService
         IEmailConfirmationTokenService emailConfirmationTokenService,
         IEmailSender emailSender,
         TimeProvider timeProvider,
-        IOptions<JwtOptions> jwtOptions)
+        IOptions<JwtOptions> jwtOptions,
+        ILogger<AuthService> logger)
     {
         _dbContext = dbContext;
         _passwordHasher = passwordHasher;
@@ -38,6 +41,7 @@ public sealed class AuthService : IAuthService
         _emailSender = emailSender;
         _timeProvider = timeProvider;
         _jwtOptions = jwtOptions.Value;
+        _logger = logger;
     }
 
     // Ответ одинаков для нового и занятого email, чтобы по регистрации нельзя было узнать, есть ли у адреса аккаунт.
@@ -87,6 +91,7 @@ public sealed class AuthService : IAuthService
         }
 
         await SendConfirmationEmailAsync(user, buildConfirmationLink, cancellationToken);
+        _logger.LogInformation("Client account registration completed for user {UserId}", user.Id);
     }
 
     public async Task ConfirmEmailAsync(string token, CancellationToken cancellationToken = default)
@@ -112,16 +117,25 @@ public sealed class AuthService : IAuthService
         {
             // Хешируем впустую, чтобы по времени ответа нельзя было отличить несуществующий email от неверного пароля.
             _passwordHasher.Hash(new User(), request.Password);
+            _logger.LogWarning("Authentication failed: account was not found");
             throw new AuthenticationFailedException("Неверный email или пароль.");
         }
 
         if (!_passwordHasher.Verify(user, request.Password))
+        {
+            _logger.LogWarning("Authentication failed for user {UserId}: invalid password", user.Id);
             throw new AuthenticationFailedException("Неверный email или пароль.");
+        }
 
         if (!user.EmailConfirmed)
+        {
+            _logger.LogWarning("Authentication denied for unconfirmed user {UserId}", user.Id);
             throw new BusinessRuleException("Email не подтверждён. Перейдите по ссылке из письма.", HttpStatusCode.Forbidden);
+        }
 
-        return await IssueTokensAsync(user, cancellationToken);
+        var tokens = await IssueTokensAsync(user, cancellationToken);
+        _logger.LogInformation("User {UserId} authenticated successfully", user.Id);
+        return tokens;
     }
 
     public async Task<AuthTokensResponse> RefreshAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default)
@@ -144,7 +158,9 @@ public sealed class AuthService : IAuthService
         if (revoked == 0)
             throw new AuthenticationFailedException("Refresh-токен недействителен или истёк.");
 
-        return await IssueTokensAsync(storedToken.User, cancellationToken);
+        var tokens = await IssueTokensAsync(storedToken.User, cancellationToken);
+        _logger.LogInformation("Access tokens refreshed for user {UserId}", storedToken.UserId);
+        return tokens;
     }
 
     private async Task<AuthTokensResponse> IssueTokensAsync(User user, CancellationToken cancellationToken)

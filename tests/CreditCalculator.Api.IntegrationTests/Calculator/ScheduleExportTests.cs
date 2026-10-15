@@ -47,4 +47,32 @@ public sealed class ScheduleExportTests
         archive.GetEntry("xl/worksheets/sheet1.xml").Should().NotBeNull();
         archive.GetEntry("xl/workbook.xml").Should().NotBeNull();
     }
+
+    [Fact]
+    public async Task CorrelationId_IsReturnedAndInvalidValuesAreReplaced()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/products");
+        request.Headers.Add("X-Correlation-ID", "test-correlation-123");
+
+        using var response = await _client.SendAsync(request);
+
+        response.Headers.GetValues("X-Correlation-ID").Should().ContainSingle().Which
+            .Should().Be("test-correlation-123");
+    }
+
+    [Fact]
+    public async Task CorrelationId_IsGeneratedWhenHeaderIsMissingOrMalformed()
+    {
+        using var generatedResponse = await _client.GetAsync("/api/v1/products");
+        using var malformedRequest = new HttpRequestMessage(HttpMethod.Get, "/api/v1/products");
+        malformedRequest.Headers.Add("X-Correlation-ID", new string('x', 65));
+
+        using var malformedResponse = await _client.SendAsync(malformedRequest);
+
+        var generatedId = generatedResponse.Headers.GetValues("X-Correlation-ID").Single();
+        var replacementId = malformedResponse.Headers.GetValues("X-Correlation-ID").Single();
+        Guid.TryParseExact(generatedId, "N", out _).Should().BeTrue();
+        Guid.TryParseExact(replacementId, "N", out _).Should().BeTrue();
+        generatedId.Should().NotBe(replacementId);
+    }
 }

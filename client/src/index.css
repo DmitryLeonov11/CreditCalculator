@@ -381,6 +381,12 @@ button {
   gap: 5px;
 }
 
+.schedule-download-actions,
+.application-schedule-download-actions {
+  display: flex;
+  margin: 0 0 18px;
+}
+
 .schedule-type {
   padding: 6px 9px;
   border: 1px solid #e0e9e1;

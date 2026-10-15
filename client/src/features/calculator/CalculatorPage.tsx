@@ -1,5 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { App as AntApp, Button, Space } from 'antd'
+import { FilePdf, FileXls } from '@phosphor-icons/react'
+import { calculatorApi } from '../../api/calculatorApi'
 import type { PaymentType, ScheduleRequest } from '../../api/calculator.types'
 import { formatCurrency, formatDate, formatPercent } from '../../lib/formatters'
 import AuthNavigation from '../auth/AuthNavigation'
@@ -87,6 +90,7 @@ const initialForm: CalculatorForm = {
 }
 
 export default function CalculatorPage() {
+  const { message } = AntApp.useApp()
   const [form, setForm] = useState(initialForm)
   const [debouncedForm, setDebouncedForm] = useState(initialForm)
   const errors = validateForm(form)
@@ -103,6 +107,9 @@ export default function CalculatorPage() {
         }
       : null
   const scheduleQuery = useScheduleQuery(request)
+  const [downloadFormat, setDownloadFormat] = useState<'pdf' | 'excel' | null>(
+    null,
+  )
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setDebouncedForm(form), 450)
@@ -119,6 +126,20 @@ export default function CalculatorPage() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setDebouncedForm(form)
+  }
+
+  async function downloadSchedule(format: 'pdf' | 'excel') {
+    if (!request || !scheduleQuery.data) return
+
+    setDownloadFormat(format)
+    try {
+      if (format === 'pdf') await calculatorApi.downloadSchedulePdf(request)
+      else await calculatorApi.downloadScheduleExcel(request)
+    } catch {
+      message.error('Не удалось скачать график платежей. Повторите попытку.')
+    } finally {
+      setDownloadFormat(null)
+    }
   }
 
   return (
@@ -368,6 +389,25 @@ export default function CalculatorPage() {
                     : 'Дифференцированный'}
                 </span>
               </div>
+
+              <Space className="schedule-download-actions" wrap>
+                <Button
+                  icon={<FilePdf size={17} />}
+                  loading={downloadFormat === 'pdf'}
+                  disabled={downloadFormat !== null}
+                  onClick={() => void downloadSchedule('pdf')}
+                >
+                  Скачать PDF
+                </Button>
+                <Button
+                  icon={<FileXls size={17} />}
+                  loading={downloadFormat === 'excel'}
+                  disabled={downloadFormat !== null}
+                  onClick={() => void downloadSchedule('excel')}
+                >
+                  Скачать Excel
+                </Button>
+              </Space>
 
               <Suspense
                 fallback={

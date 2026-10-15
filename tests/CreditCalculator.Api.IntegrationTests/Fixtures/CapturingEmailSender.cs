@@ -16,6 +16,9 @@ public sealed partial class CapturingEmailSender : IEmailSender
 
     public int CountEmails(string email) => _sentEmails.Count(sentEmail => sentEmail.To == email);
 
+    public bool HasEmailContaining(string email, string bodyFragment) =>
+        _sentEmails.Any(sentEmail => sentEmail.To == email && sentEmail.Body.Contains(bodyFragment, StringComparison.Ordinal));
+
     public Uri GetConfirmationLink(string email)
     {
         var sentEmail = _sentEmails.Last(sentEmail => sentEmail.To == email);

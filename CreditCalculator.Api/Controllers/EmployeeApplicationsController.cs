@@ -35,13 +35,19 @@ public sealed class EmployeeApplicationsController : ControllerBase
     public async Task<ActionResult<ApplicationResponse>> Approve(
         Guid id,
         ApproveApplicationRequest request,
-        CancellationToken cancellationToken) =>
-        Ok(await _applicationService.ApproveAsync(User.GetUserId(), id, request, cancellationToken));
+        CancellationToken cancellationToken)
+    {
+        var application = await _applicationService.ApproveAsync(User.GetUserId(), id, request, cancellationToken);
+        return Ok(application);
+    }
 
     [HttpPost("{id:guid}/reject")]
     public async Task<ActionResult<ApplicationResponse>> Reject(
         Guid id,
         RejectApplicationRequest request,
-        CancellationToken cancellationToken) =>
-        Ok(await _applicationService.RejectAsync(User.GetUserId(), id, request, cancellationToken));
+        CancellationToken cancellationToken)
+    {
+        var application = await _applicationService.RejectAsync(User.GetUserId(), id, request, cancellationToken);
+        return Ok(application);
+    }
 }

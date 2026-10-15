@@ -1,4 +1,5 @@
 import { httpClient } from './httpClient'
+import { saveDownloadedFile } from './fileDownloads'
 import type {
   EarlyRepaymentRequest,
   EarlyRepaymentResponse,
@@ -7,6 +8,24 @@ import type {
 } from './calculator.types'
 
 export const calculatorApi = {
+  async downloadSchedulePdf(request: ScheduleRequest): Promise<void> {
+    const response = await httpClient.post<Blob>(
+      '/calculator/schedule/pdf',
+      request,
+      { responseType: 'blob' },
+    )
+    saveDownloadedFile(response, 'payment-schedule.pdf')
+  },
+
+  async downloadScheduleExcel(request: ScheduleRequest): Promise<void> {
+    const response = await httpClient.post<Blob>(
+      '/calculator/schedule/excel',
+      request,
+      { responseType: 'blob' },
+    )
+    saveDownloadedFile(response, 'payment-schedule.xlsx')
+  },
+
   async getSchedule(
     request: ScheduleRequest,
     signal?: AbortSignal,

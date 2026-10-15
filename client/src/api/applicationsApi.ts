@@ -1,4 +1,5 @@
 import { httpClient } from './httpClient'
+import { saveDownloadedFile } from './fileDownloads'
 import type {
   ApplicationResponse,
   ApplicationScheduleResponse,
@@ -32,6 +33,22 @@ export const applicationsApi = {
       `/applications/${id}/schedule`,
     )
     return data
+  },
+
+  async downloadSchedulePdf(id: string): Promise<void> {
+    const response = await httpClient.get<Blob>(
+      `/applications/${id}/schedule/pdf`,
+      { responseType: 'blob' },
+    )
+    saveDownloadedFile(response, `application-${id}-schedule.pdf`)
+  },
+
+  async downloadScheduleExcel(id: string): Promise<void> {
+    const response = await httpClient.get<Blob>(
+      `/applications/${id}/schedule/excel`,
+      { responseType: 'blob' },
+    )
+    saveDownloadedFile(response, `application-${id}-schedule.xlsx`)
   },
 
   async create(
