@@ -30,10 +30,6 @@ type EarlyPaymentRow = {
   amount: string
 }
 
-const initialPayments: EarlyPaymentRow[] = [
-  { id: 1, month: '6', amount: '1000' },
-]
-
 export default function EarlyRepaymentPanel({
   amount,
   termMonths,
@@ -42,9 +38,45 @@ export default function EarlyRepaymentPanel({
   enabled,
 }: EarlyRepaymentPanelProps) {
   const [mode, setMode] = useState<EarlyRepaymentMode>('ReduceTerm')
-  const [payments, setPayments] = useState(initialPayments)
-  const [request, setRequest] = useState<EarlyRepaymentRequest | null>(null)
-  const query = useEarlyRepaymentQuery(request)
+  const [payments, setPayments] = useState<EarlyPaymentRow[]>(() => [
+    { id: 1, month: String(Math.min(6, termMonths)), amount: '1000' },
+  ])
+  const [request, setRequest] = useState<EarlyRepaymentRequest | null>(() => ({
+    amount,
+    termMonths,
+    annualRatePercent,
+    firstPaymentDate,
+    mode: 'ReduceTerm',
+    earlyRepayments: [{ month: Math.min(6, termMonths), amount: 1000 }],
+  }))
+  const currentRequest: EarlyRepaymentRequest = {
+    amount,
+    termMonths,
+    annualRatePercent,
+    firstPaymentDate,
+    mode,
+    earlyRepayments: payments.map((payment) => ({
+      month: Number(payment.month),
+      amount: Number(payment.amount),
+    })),
+  }
+  const requestMatchesForm =
+    request !== null &&
+    JSON.stringify(request) === JSON.stringify(currentRequest)
+  const query = useEarlyRepaymentQuery(requestMatchesForm ? request : null)
+  const invalidPayments = payments.filter((payment) => {
+    const month = Number(payment.month)
+    const paymentAmount = Number(payment.amount)
+    return (
+      !payment.month.trim() ||
+      !Number.isInteger(month) ||
+      month < 1 ||
+      month > termMonths ||
+      !payment.amount.trim() ||
+      !Number.isFinite(paymentAmount) ||
+      paymentAmount <= 0
+    )
+  })
 
   function updatePayment(id: number, field: 'month' | 'amount', value: string) {
     setPayments((current) =>
@@ -55,7 +87,6 @@ export default function EarlyRepaymentPanel({
   }
 
   function addPayment() {
-    setRequest(null)
     setPayments((current) => [
       ...current,
       {
@@ -68,30 +99,21 @@ export default function EarlyRepaymentPanel({
 
   function removePayment(id: number) {
     setPayments((current) => current.filter((payment) => payment.id !== id))
-    setRequest(null)
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!enabled || payments.length === 0) {
+    if (!enabled || payments.length === 0 || invalidPayments.length > 0) {
       return
     }
 
-    setRequest({
-      amount,
-      termMonths,
-      annualRatePercent,
-      firstPaymentDate,
-      mode,
-      earlyRepayments: payments.map((payment) => ({
-        month: Number(payment.month),
-        amount: Number(payment.amount),
-      })),
-    })
+    setRequest(currentRequest)
   }
 
-  const original = query.data?.original
-  const recalculated = query.data?.withEarlyRepayments
+  const original = requestMatchesForm ? query.data?.original : undefined
+  const recalculated = requestMatchesForm
+    ? query.data?.withEarlyRepayments
+    : undefined
   const overpaymentSavings =
     original && recalculated
       ? original.overpayment - recalculated.overpayment
@@ -100,6 +122,15 @@ export default function EarlyRepaymentPanel({
     original && recalculated
       ? original.payments.length - recalculated.payments.length
       : 0
+  const lastEarlyRepaymentMonth = requestMatchesForm
+    ? Math.max(...payments.map((payment) => Number(payment.month)))
+    : undefined
+  const firstPaymentAfterEarlyRepayment =
+    recalculated && lastEarlyRepaymentMonth !== undefined
+      ? recalculated.payments.find(
+          (payment) => payment.number > lastEarlyRepaymentMonth,
+        )
+      : undefined
   const comparisonData =
     original && recalculated
       ? Array.from(
@@ -135,7 +166,6 @@ export default function EarlyRepaymentPanel({
             value={mode}
             onChange={(event) => {
               setMode(event.target.value as EarlyRepaymentMode)
-              setRequest(null)
             }}
           >
             <option value="ReduceTerm">
@@ -181,9 +211,21 @@ export default function EarlyRepaymentPanel({
                     onChange={(event) =>
                       updatePayment(payment.id, 'month', event.target.value)
                     }
-                    onInput={() => setRequest(null)}
+                    aria-invalid={
+                      !payment.month.trim() ||
+                      !Number.isInteger(Number(payment.month)) ||
+                      Number(payment.month) < 1 ||
+                      Number(payment.month) > termMonths
+                    }
+                    aria-describedby={`early-month-help-${payment.id}`}
                     required
                   />
+                  <span
+                    className="field-hint"
+                    id={`early-month-help-${payment.id}`}
+                  >
+                    От 1 до {termMonths} мес.
+                  </span>
                 </label>
                 <label className="field" htmlFor={`early-amount-${payment.id}`}>
                   <span>Сумма досрочного платежа</span>
@@ -192,17 +234,27 @@ export default function EarlyRepaymentPanel({
                       id={`early-amount-${payment.id}`}
                       type="number"
                       min="0.01"
-                      max={amount}
                       step="0.01"
                       inputMode="decimal"
                       value={payment.amount}
                       onChange={(event) =>
                         updatePayment(payment.id, 'amount', event.target.value)
                       }
-                      onInput={() => setRequest(null)}
+                      aria-invalid={
+                        !payment.amount.trim() ||
+                        !Number.isFinite(Number(payment.amount)) ||
+                        Number(payment.amount) <= 0
+                      }
+                      aria-describedby={`early-amount-help-${payment.id}`}
                       required
                     />
                     <span className="input-suffix">BYN</span>
+                  </span>
+                  <span
+                    className="field-hint"
+                    id={`early-amount-help-${payment.id}`}
+                  >
+                    Сумма должна быть больше нуля.
                   </span>
                 </label>
                 <button
@@ -216,17 +268,29 @@ export default function EarlyRepaymentPanel({
               </div>
             ))
           )}
+          {invalidPayments.length > 0 ? (
+            <p className="early-validation-message" role="alert">
+              Проверьте сумму и месяц каждого платежа: месяц должен быть целым
+              числом от 1 до {termMonths}, сумма — больше нуля.
+            </p>
+          ) : null}
         </div>
 
-        <p className="early-repayment-note">
-          Сравнение строится по аннуитетному графику. Сумма досрочного погашения
-          применяется в указанном месяце после планового платежа.
+        <p className="early-repayment-note" id="early-repayment-explanation">
+          Сравнение строится по аннуитетному графику. Досрочная сумма
+          применяется после планового взноса; несколько платежей в одном месяце
+          суммируются. Если сумма превышает остаток долга, она ограничивается
+          этим остатком.
         </p>
 
         <button
           className="calculate-button"
           type="submit"
-          disabled={!enabled || payments.length === 0}
+          disabled={
+            !enabled || payments.length === 0 || invalidPayments.length > 0
+          }
+          aria-describedby="early-repayment-explanation"
+          aria-busy={query.isFetching}
         >
           Сравнить графики
           <span aria-hidden="true">→</span>
@@ -239,7 +303,7 @@ export default function EarlyRepaymentPanel({
         </p>
       ) : null}
 
-      {query.isError ? (
+      {requestMatchesForm && query.isError ? (
         <div className="result-message error-message" role="alert">
           <strong>Не удалось сравнить графики</strong>
           <span>
@@ -257,7 +321,7 @@ export default function EarlyRepaymentPanel({
         </div>
       ) : null}
 
-      {query.isFetching ? (
+      {requestMatchesForm && query.isFetching ? (
         <div className="result-message" aria-live="polite">
           <div className="skeleton-line skeleton-title" />
           <div className="skeleton-line" />
@@ -272,12 +336,12 @@ export default function EarlyRepaymentPanel({
               <h3>Результат сравнения</h3>
               <p>
                 {mode === 'ReduceTerm'
-                  ? 'Размер планового платежа сохраняется'
-                  : 'Срок кредита сохраняется, плановый платёж уменьшается'}
+                  ? 'Плановый платёж сохраняется до последнего месяца, срок сокращается'
+                  : 'Платёж пересчитывается; кредит может закрыться раньше срока'}
               </p>
             </div>
             <span className="comparison-savings">
-              {overpaymentSavings >= 0 ? 'Экономия' : 'Переплата'}{' '}
+              {overpaymentSavings >= 0 ? 'Экономия процентов' : 'Доп. проценты'}{' '}
               {formatCurrency(Math.abs(overpaymentSavings))}
             </span>
           </div>
@@ -296,8 +360,18 @@ export default function EarlyRepaymentPanel({
               <strong>{formatCurrency(original.monthlyPayment)}</strong>
             </div>
             <div className="comparison-item">
-              <span>Первый платёж после пересчёта</span>
-              <strong>{formatCurrency(recalculated.monthlyPayment)}</strong>
+              <span>
+                {firstPaymentAfterEarlyRepayment
+                  ? 'Платёж после всех досрочных взносов'
+                  : 'Последний платёж'}
+              </span>
+              <strong>
+                {formatCurrency(
+                  firstPaymentAfterEarlyRepayment?.payment ??
+                    recalculated.payments.at(-1)?.payment ??
+                    recalculated.monthlyPayment,
+                )}
+              </strong>
             </div>
             <div className="comparison-item">
               <span>Срок без досрочного погашения</span>
@@ -309,14 +383,20 @@ export default function EarlyRepaymentPanel({
             </div>
           </div>
 
-          {mode === 'ReduceTerm' && termSavings > 0 ? (
+          {termSavings > 0 ? (
             <p className="term-savings">
-              Срок сократился на {termSavings} мес.
+              {mode === 'ReduceTerm'
+                ? `Срок сократился на ${termSavings} мес.`
+                : `Остаток погашен на ${termSavings} мес. раньше срока.`}
             </p>
           ) : null}
 
           <div className="comparison-chart">
             <h4>Плановые платежи: до и после</h4>
+            <p className="comparison-chart-note">
+              В месяцы досрочного погашения сумма на графике включает плановый
+              взнос и досрочную выплату. Показан итог платежа за месяц.
+            </p>
             <div
               className="chart-container"
               role="group"

@@ -55,6 +55,13 @@ namespace CreditCalculator
                 foreach (var proxy in builder.Configuration.GetSection("ReverseProxy:KnownProxies").Get<string[]>() ?? [])
                     options.KnownProxies.Add(IPAddress.Parse(proxy));
             });
+            builder.Services.AddOptions<CorsOptions>()
+                .BindConfiguration(CorsOptions.SectionName)
+                .Validate(options => CorsOptions.HasValidOrigins(options.AllowedOrigins),
+                    "Cors:AllowedOrigins должен содержать хотя бы один точный HTTP(S)-origin без пути, учётных данных и wildcard.")
+                .ValidateOnStart();
+            builder.Services.AddCors();
+            builder.Services.AddHsts(options => options.MaxAge = TimeSpan.FromDays(365));
             builder.Services.AddOptions<PublicUrlOptions>()
                 .BindConfiguration(PublicUrlOptions.SectionName)
                 .Validate(
@@ -82,6 +89,26 @@ namespace CreditCalculator
             var app = builder.Build();
 
             app.UseForwardedHeaders();
+            if (!app.Environment.IsDevelopment())
+            {
+                app.UseHsts();
+                app.Use(async (context, next) =>
+                {
+                    context.Response.Headers["Content-Security-Policy"] =
+                        "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+                    await next();
+                });
+            }
+
+            app.Use(async (context, next) =>
+            {
+                context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+                context.Response.Headers["X-Frame-Options"] = "DENY";
+                context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+                context.Response.Headers["Permissions-Policy"] = "camera=(), geolocation=(), microphone=()";
+                await next();
+            });
+
             app.UseMiddleware<CorrelationIdMiddleware>();
             app.UseSerilogRequestLogging(options =>
             {
@@ -106,6 +133,9 @@ namespace CreditCalculator
                 await scope.ServiceProvider.GetRequiredService<DevelopmentDataSeeder>().SeedAsync();
             }
 
+            var allowedOrigins = app.Configuration.GetSection(CorsOptions.SectionName)
+                .Get<CorsOptions>()?.AllowedOrigins ?? [];
+            app.UseCors(policy => policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod());
             app.UseHttpsRedirection();
 
             app.UseAuthentication();

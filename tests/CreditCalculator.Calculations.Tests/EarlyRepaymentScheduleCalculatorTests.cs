@@ -86,6 +86,25 @@ public class EarlyRepaymentScheduleCalculatorTests
         result.Payments[^1].RemainingBalance.Should().Be(0m);
     }
 
+    [Theory]
+    [MemberData(nameof(EarlyRepaymentModes))]
+    public void RepaymentsInFinalMonth_AreCappedAtRemainingBalanceAndCloseLoan(
+        Func<decimal, decimal, int, DateOnly, IReadOnlyList<EarlyRepayment>, PaymentScheduleResult> buildSchedule)
+    {
+        var result = buildSchedule(
+            10_000m,
+            0m,
+            1,
+            FirstPaymentDate,
+            [new EarlyRepayment(1, 50_000m), new EarlyRepayment(1, 50_000m)]);
+
+        result.Payments.Should().ContainSingle();
+        result.Payments[0].PrincipalPart.Should().Be(10_000m);
+        result.Payments[0].RemainingBalance.Should().Be(0m);
+        result.TotalPaid.Should().Be(10_000m);
+        result.Overpayment.Should().Be(0m);
+    }
+
     public static TheoryData<Func<decimal, decimal, int, DateOnly, IReadOnlyList<EarlyRepayment>, PaymentScheduleResult>> EarlyRepaymentModes() => new()
     {
         EarlyRepaymentScheduleCalculator.BuildReduceTermSchedule,

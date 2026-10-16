@@ -13,6 +13,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public const string SeededEmployeeEmail = "employee@creditcalculator.local";
     public const string SeededEmployeePassword = "Employee123";
     public const string PublicBaseUrl = "https://creditcalculator.test";
+    public const string AllowedFrontendOrigin = "https://frontend.creditcalculator.test";
 
     private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:17-alpine").Build();
 
@@ -29,6 +30,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             ["Jwt:SigningKey"] = "integration-tests-signing-key-not-for-production",
             ["RateLimiting:Auth:PermitLimit"] = "1000",
             ["PublicUrl:BaseUrl"] = PublicBaseUrl,
+            ["Cors:AllowedOrigins:0"] = AllowedFrontendOrigin,
+            ["Cors:AllowedOrigins:1"] = "http://localhost:5173",
             ["Seed:EmployeeEmail"] = SeededEmployeeEmail,
             ["Seed:EmployeePassword"] = SeededEmployeePassword
         }));

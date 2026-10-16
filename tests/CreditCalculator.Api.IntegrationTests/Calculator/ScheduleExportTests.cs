@@ -6,16 +6,25 @@ using CreditCalculator.Api.IntegrationTests.Fixtures;
 using CreditCalculator.Api.Contracts;
 using CreditCalculator.Calculations.Models;
 using FluentAssertions;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace CreditCalculator.Api.IntegrationTests.Calculator;
 
 [Collection(ApiCollection.Name)]
 public sealed class ScheduleExportTests
 {
+    private readonly ApiFactory _factory;
     private readonly HttpClient _client;
 
     public ScheduleExportTests(ApiFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -74,5 +83,73 @@ public sealed class ScheduleExportTests
         Guid.TryParseExact(generatedId, "N", out _).Should().BeTrue();
         Guid.TryParseExact(replacementId, "N", out _).Should().BeTrue();
         generatedId.Should().NotBe(replacementId);
+    }
+
+    [Fact]
+    public async Task Cors_PreflightAllowsConfiguredOriginAndRejectsOtherOrigins()
+    {
+        _factory.Services.GetRequiredService<IConfiguration>()
+            .GetSection("Cors:AllowedOrigins").Get<string[]>()
+            .Should().Contain(ApiFactory.AllowedFrontendOrigin);
+
+        using var allowedRequest = new HttpRequestMessage(HttpMethod.Options, "/api/v1/products");
+        allowedRequest.Headers.Add("Origin", ApiFactory.AllowedFrontendOrigin);
+        allowedRequest.Headers.Add("Access-Control-Request-Method", "GET");
+        allowedRequest.Headers.Add("Access-Control-Request-Headers", "authorization");
+
+        using var allowedResponse = await _client.SendAsync(allowedRequest);
+
+        allowedResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        allowedResponse.Headers.TryGetValues("Access-Control-Allow-Origin", out var allowedOrigins).Should()
+            .BeTrue($"Expected CORS headers, got: {string.Join(", ", allowedResponse.Headers.Select(header => $"{header.Key}={string.Join(";", header.Value)}"))}");
+        allowedOrigins!
+            .Should().ContainSingle().Which.Should().Be(ApiFactory.AllowedFrontendOrigin);
+        allowedResponse.Headers.GetValues("Access-Control-Allow-Headers")
+            .Should().ContainSingle().Which.Should().Contain("authorization");
+
+        using var rejectedRequest = new HttpRequestMessage(HttpMethod.Options, "/api/v1/products");
+        rejectedRequest.Headers.Add("Origin", "https://untrusted.example");
+        rejectedRequest.Headers.Add("Access-Control-Request-Method", "GET");
+
+        using var rejectedResponse = await _client.SendAsync(rejectedRequest);
+
+        rejectedResponse.Headers.Contains("Access-Control-Allow-Origin").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ApiResponses_IncludeSecurityHeadersWithoutEnablingHstsInDevelopment()
+    {
+        using var response = await _client.GetAsync("/api/v1/products");
+
+        response.Headers.GetValues("X-Content-Type-Options").Should().ContainSingle().Which.Should().Be("nosniff");
+        response.Headers.GetValues("X-Frame-Options").Should().ContainSingle().Which.Should().Be("DENY");
+        response.Headers.GetValues("Referrer-Policy").Should().ContainSingle().Which
+            .Should().Be("strict-origin-when-cross-origin");
+        response.Headers.GetValues("Permissions-Policy").Should().ContainSingle().Which
+            .Should().Contain("camera=()");
+        response.Headers.Contains("Strict-Transport-Security").Should().BeFalse();
+        response.Headers.Contains("Content-Security-Policy").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ApiResponses_EnableHstsAndStrictContentSecurityPolicyOutsideDevelopment()
+    {
+        using var productionFactory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
+            .UseEnvironment("Production")
+            .ConfigureAppConfiguration(configuration => configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:Default"] = "Host=localhost;Database=unused;Username=unused;Password=unused",
+                ["Jwt:SigningKey"] = "integration-tests-signing-key-not-for-production",
+                ["PublicUrl:BaseUrl"] = ApiFactory.PublicBaseUrl,
+                ["Cors:AllowedOrigins:0"] = ApiFactory.AllowedFrontendOrigin
+            })));
+        using var client = productionFactory.CreateClient();
+        using var response = await client.GetAsync("/");
+
+        productionFactory.Services.GetRequiredService<IHostEnvironment>().EnvironmentName.Should().Be("Production");
+        productionFactory.Services.GetRequiredService<IOptions<HstsOptions>>().Value.MaxAge
+            .Should().Be(TimeSpan.FromDays(365));
+        response.Headers.GetValues("Content-Security-Policy").Should().ContainSingle().Which
+            .Should().Contain("default-src 'none'").And.Contain("frame-ancestors 'none'");
     }
 }

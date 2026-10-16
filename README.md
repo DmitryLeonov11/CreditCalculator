@@ -15,6 +15,10 @@ docker compose up --build
 
 Фронтенд будет доступен на `http://localhost:3000`, API — на `http://localhost:8080`, PostgreSQL — на `localhost:5432`. Клиент обращается к API через Nginx внутри Compose. Если порты заняты, задайте `FRONTEND_PORT`, `API_PORT` и `DB_PORT` в `.env`.
 
+В Development API разрешает браузерные запросы с локального Compose-фронтенда и Vite (`http://localhost:5173` и `http://127.0.0.1:5173`). Для Compose origin по умолчанию строится из `FRONTEND_PORT`; при публикации за другим доменом задайте в `.env` `FRONTEND_ORIGIN=https://frontend.example.com`. В production укажите реальные origin в `Cors:AllowedOrigins` (или в `Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1` и т.д.); список должен содержать хотя бы один точный HTTP(S)-origin, иначе API не запустится. Origin — это только схема, хост и необязательный порт, без пути и завершающего `/`.
+
+Вне Development API включает HSTS на один год и security-заголовки. TLS должен завершаться на Kestrel либо на reverse proxy, который перенаправляет HTTP на HTTPS. При TLS termination передайте API `X-Forwarded-Proto` только от доверенного proxy и задайте его IP в `ReverseProxy:KnownProxies` (например, `ReverseProxy__KnownProxies__0=10.0.0.10`); не доверяйте forwarded-заголовкам от произвольных клиентов. Сам reverse proxy также должен перенаправлять внешние HTTP-запросы на HTTPS.
+
 ### Локально через `dotnet run`
 
 Нужна запущенная база, например из того же compose (`docker compose up -d db`). Затем:
