@@ -1,0 +1,31 @@
+﻿import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/setupTests.ts'],
+  },
+  build: {
+    rollupOptions: {
+      onwarn(warning, warn) {
+        const warningId = warning.id?.replaceAll('\\', '/')
+        const isZodAnnotationWarning =
+          warning.code === 'INVALID_ANNOTATION' &&
+          warningId?.includes('/node_modules/zod/v4/core/')
+
+        if (!isZodAnnotationWarning) warn(warning)
+      },
+    },
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5288',
+        changeOrigin: true,
+      },
+    },
+  },
+})
