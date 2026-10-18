@@ -1,10 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { App, ConfigProvider } from 'antd'
-import type {
-  ScheduleRequest,
-  ScheduleResponse,
-} from '../../api/calculator.types'
+import type { ScheduleResponse } from '../../api/calculator.types'
 import CalculatorPage from './CalculatorPage'
 
 /**
@@ -80,10 +77,7 @@ const reducedSchedule: ScheduleResponse = {
 }
 
 const { mockGetSchedule } = vi.hoisted(() => ({
-  mockGetSchedule: vi.fn(
-    async (_request: ScheduleRequest): Promise<ScheduleResponse> =>
-      defaultSchedule,
-  ),
+  mockGetSchedule: vi.fn(async (): Promise<ScheduleResponse> => defaultSchedule),
 }))
 
 vi.mock('../../api/calculatorApi', () => ({
