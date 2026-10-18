@@ -38,7 +38,9 @@ test.describe('End-to-end: регистрация → заявка → реше�
     await page.fill('#profile-existing-monthly-payments', '0')
     await page.fill('#profile-dependents', '0')
     await page.click('button:has-text("Сохранить анкету")')
-    await expect(page.locator('.form-success')).toContainText('Анкета сохранена')
+    await expect(page.locator('.form-success')).toContainText(
+      'Анкета сохранена',
+    )
 
     // 4. Подача заявки
     await page.click('nav text=Новая заявка')
@@ -50,11 +52,11 @@ test.describe('End-to-end: регистрация → заявка → реше�
     // 5. Проверка статуса заявки и результата скоринга
     await expect(
       page.locator(
-        'text=UnderReview, text=На рассмотрении, text=Одобрено, text=Approved'
+        'text=UnderReview, text=На рассмотрении, text=Одобрено, text=Approved',
       ),
     ).toBeVisible()
     await expect(
-      page.locator('text=Scoring, text=Скоринг, text=Балл, text=score')
+      page.locator('text=Scoring, text=Скоринг, text=Балл, text=score'),
     ).toBeVisible()
   })
 })

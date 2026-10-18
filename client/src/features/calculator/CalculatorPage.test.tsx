@@ -77,7 +77,9 @@ const reducedSchedule: ScheduleResponse = {
 }
 
 const { mockGetSchedule } = vi.hoisted(() => ({
-  mockGetSchedule: vi.fn(async (): Promise<ScheduleResponse> => defaultSchedule),
+  mockGetSchedule: vi.fn(
+    async (): Promise<ScheduleResponse> => defaultSchedule,
+  ),
 }))
 
 vi.mock('../../api/calculatorApi', () => ({
@@ -160,16 +162,11 @@ describe('CalculatorPage', () => {
     expect(screen.getByText('18,76%')).toBeInTheDocument()
 
     // Table header columns render in the declared order.
-    ;[
-      '№',
-      'Дата',
-      'Платёж',
-      'Проценты',
-      'Основной долг',
-      'Остаток',
-    ].forEach((header) => {
-      expect(screen.getByText(header)).toBeInTheDocument()
-    })
+    ;['№', 'Дата', 'Платёж', 'Проценты', 'Основной долг', 'Остаток'].forEach(
+      (header) => {
+        expect(screen.getByText(header)).toBeInTheDocument()
+      },
+    )
 
     // First payment row.
     expect(screen.getByText('1')).toBeInTheDocument()
@@ -184,7 +181,9 @@ describe('CalculatorPage', () => {
     fireEvent.change(amount, { target: { value: '' } })
     await flush(100)
 
-    expect(screen.getByText('Укажите сумму от 500 до 300 000 BYN.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Укажите сумму от 500 до 300 000 BYN.'),
+    ).toBeInTheDocument()
     expect(amount).toHaveAttribute('aria-invalid', 'true')
   })
 
@@ -196,7 +195,9 @@ describe('CalculatorPage', () => {
     fireEvent.change(term, { target: { value: '300' } })
     await flush(100)
 
-    expect(screen.getByText('Срок должен быть от 1 до 240 месяцев.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Срок должен быть от 1 до 240 месяцев.'),
+    ).toBeInTheDocument()
     expect(term).toHaveAttribute('aria-invalid', 'true')
   })
 
@@ -208,7 +209,9 @@ describe('CalculatorPage', () => {
     fireEvent.change(rate, { target: { value: '70' } })
     await flush(100)
 
-    expect(screen.getByText('Ставка должна быть от 0,1% до 60%.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Ставка должна быть от 0,1% до 60%.'),
+    ).toBeInTheDocument()
     expect(rate).toHaveAttribute('aria-invalid', 'true')
   })
 
@@ -220,7 +223,9 @@ describe('CalculatorPage', () => {
     fireEvent.change(date, { target: { value: '2026-02-30' } })
     await flush(100)
 
-    expect(screen.getByText('Укажите корректную дату первого платежа.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Укажите корректную дату первого платежа.'),
+    ).toBeInTheDocument()
     expect(date).toHaveAttribute('aria-invalid', 'true')
   })
 
