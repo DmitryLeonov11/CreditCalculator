@@ -38,7 +38,7 @@ const defaultSchedule: ScheduleResponse = {
       payment: 946.06,
       interestPart: 280.0,
       principalPart: 666.06,
-            remainingBalance: 0.0,
+      remainingBalance: 0.0,
     },
   ],
 }
@@ -171,7 +171,7 @@ describe('CalculatorPage', () => {
       expect(screen.getByText(header)).toBeInTheDocument()
     })
 
-        // First payment row.
+    // First payment row.
     expect(screen.getByText('1')).toBeInTheDocument()
     expect(screen.getByText('01.02.2026')).toBeInTheDocument()
   })
