@@ -96,8 +96,17 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          dockerfile: CreditCalculator.Api/Dockerfile
           push: true
-          tags: ghcr.io/dmitryleonov11/credit-calculator-api:latest,ghcr.io/dmitryleonov11/credit-calculator-frontend:latest
+          tags: ghcr.io/dmitryleonov11/credit-calculator-api:latest
           build-args: |
             POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }}
             JWT_SIGNING_KEY=${{ env.JWT_SIGNING_KEY }}
+
+      - name: Build and push frontend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./client
+          dockerfile: Dockerfile
+          push: true
+          tags: ghcr.io/dmitryleonov11/credit-calculator-frontend:latest

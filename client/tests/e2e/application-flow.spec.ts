@@ -51,7 +51,7 @@ test.describe('End-to-end: регистрация → заявка → реше�
     await expect(
       page.locator(
         'text=UnderReview, text=На рассмотрении, text=Одобрено, text=Approved'
-      )
+      ),
     ).toBeVisible()
     await expect(
       page.locator('text=Scoring, text=Скоринг, text=Балл, text=score')
