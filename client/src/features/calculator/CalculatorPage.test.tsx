@@ -256,11 +256,27 @@ describe('CalculatorPage', () => {
 
     // After the debounce settles and the refetched schedule resolves, the
     // table reappears with the recalculated payment for 5 000 BYN.
-    await flush(600)
+    // Each flush() is an act scope that drains React's queue and flushes
+    // microtasks, so keep flushing until React Query commits the schedule
+    // to the DOM (fake timers prevent using real waitFor).
+    for (
+      let elapsed = 0;
+      elapsed < 3000 &&
+      !screen.queryByText(/Помесячный график платежей по кредиту/);
+      elapsed += 50
+    ) {
+      await flush(50)
+    }
     expect(
       screen.getByText(/Помесячный график платежей по кредиту/),
     ).toBeInTheDocument()
-    expect(screen.getByText('236,51')).toBeInTheDocument()
-    expect(screen.queryByText('946,06')).not.toBeInTheDocument()
+    // The recalculated schedule (5 000 BYN) replaces the default one.
+    expect(
+      screen
+        .getByText('Первый платёж')
+        .closest('.summary-item')!
+        .querySelector('strong'),
+    ).toHaveTextContent('236,51 Br')
+    expect(screen.queryByText('946,06 Br')).not.toBeInTheDocument()
   })
 })
