@@ -1,6 +1,5 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import { defineVitestConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [react()],
@@ -24,9 +23,9 @@ export default defineConfig({
       },
     },
   },
-  test: defineVitestConfig({
+  test: {
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
-  }),
+  },
 })
