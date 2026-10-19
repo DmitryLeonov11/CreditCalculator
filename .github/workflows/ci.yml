@@ -92,21 +92,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker images
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          dockerfile: CreditCalculator.Api/Dockerfile
-          push: true
-          tags: ghcr.io/dmitryleonov11/credit-calculator-api:latest
-          build-args: |
-            POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }}
-            JWT_SIGNING_KEY=${{ env.JWT_SIGNING_KEY }}
+      - name: Build and push API Docker image
+        run: |
+          docker buildx build -f CreditCalculator.Api/Dockerfile \
+            --build-arg POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }} \
+            --build-arg JWT_SIGNING_KEY=${{ env.JWT_SIGNING_KEY }} \
+            -t ghcr.io/dmitryleonov11/credit-calculator-api:latest \
+            --push .
 
       - name: Build and push frontend Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./client
-          dockerfile: Dockerfile
-          push: true
-          tags: ghcr.io/dmitryleonov11/credit-calculator-frontend:latest
+        run: |
+          docker buildx build -f Dockerfile \
+            -t ghcr.io/dmitryleonov11/credit-calculator-frontend:latest \
+            --push ./client
