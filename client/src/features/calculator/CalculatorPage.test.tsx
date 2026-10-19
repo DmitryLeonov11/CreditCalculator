@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { App, ConfigProvider } from 'antd'
 import type {
@@ -127,7 +127,9 @@ function renderPage() {
 
 /** Advance fake timers and flush pending microtasks (resolves in-flight queries). */
 async function flush(ms = 600) {
-  await vi.advanceTimersByTimeAsync(ms)
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms)
+  })
 }
 
 beforeEach(() => {
@@ -158,7 +160,12 @@ describe('CalculatorPage', () => {
 
     // Summary row - first payment uses the formatted annuity amount.
     expect(screen.getByText('Первый платёж')).toBeInTheDocument()
-    expect(screen.getByText(/946,06/)).toBeInTheDocument()
+    expect(
+      screen
+        .getByText('Первый платёж')
+        .closest('.summary-item')!
+        .querySelector('strong'),
+    ).toHaveTextContent('946,06 Br')
     expect(screen.getByText('Эффективная ставка (ППС)')).toBeInTheDocument()
     expect(screen.getByText('18,76%')).toBeInTheDocument()
 
@@ -178,7 +185,7 @@ describe('CalculatorPage', () => {
     renderPage()
     await flush()
 
-    const amount = screen.getByLabelText('Сумма кредита')
+    const amount = screen.getByLabelText(/Сумма кредита/)
     fireEvent.change(amount, { target: { value: '' } })
     await flush(100)
 
@@ -192,7 +199,7 @@ describe('CalculatorPage', () => {
     renderPage()
     await flush()
 
-    const term = screen.getByLabelText('Срок кредита')
+    const term = screen.getByLabelText(/Срок кредита/)
     fireEvent.change(term, { target: { value: '300' } })
     await flush(100)
 
@@ -206,7 +213,7 @@ describe('CalculatorPage', () => {
     renderPage()
     await flush()
 
-    const rate = screen.getByLabelText('Годовая ставка')
+    const rate = screen.getByLabelText(/Годовая ставка/)
     fireEvent.change(rate, { target: { value: '70' } })
     await flush(100)
 
@@ -220,7 +227,7 @@ describe('CalculatorPage', () => {
     renderPage()
     await flush()
 
-    const date = screen.getByLabelText('Дата первого платежа')
+    const date = screen.getByLabelText(/Дата первого платежа/)
     fireEvent.change(date, { target: { value: '2026-02-30' } })
     await flush(100)
 
@@ -234,7 +241,7 @@ describe('CalculatorPage', () => {
     renderPage()
     await flush()
 
-    const amount = screen.getByLabelText('Сумма кредита')
+    const amount = screen.getByLabelText(/Сумма кредита/)
     fireEvent.change(amount, { target: { value: '5000' } })
 
     // Before the 450 ms debounce settles, the request is null so the table is
