@@ -1,4 +1,5 @@
 using CreditCalculator.Api.Hubs;
+using CreditCalculator.Application.Abstractions;
 using Microsoft.AspNetCore.SignalR;
 
 namespace CreditCalculator.Api.Services;
@@ -8,7 +9,7 @@ public interface IApplicationStatusNotifier
     Task NotifyStatusChangedAsync(Guid applicationId, string newStatus, string? comment = null, CancellationToken cancellationToken = default);
 }
 
-public sealed class ApplicationStatusNotifier : IApplicationStatusNotifier
+public sealed class ApplicationStatusNotifier : IApplicationStatusNotifier, CreditCalculator.Application.Abstractions.IApplicationStatusNotifier
 {
     private readonly IHubContext<ApplicationStatusHub> _hubContext;
     private readonly ILogger<ApplicationStatusNotifier> _logger;

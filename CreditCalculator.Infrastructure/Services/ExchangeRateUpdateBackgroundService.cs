@@ -1,4 +1,5 @@
 using CreditCalculator.Application.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -7,16 +8,16 @@ namespace CreditCalculator.Infrastructure.Services;
 
 public sealed class ExchangeRateUpdateBackgroundService : BackgroundService
 {
-    private readonly IExchangeRateService _exchangeRateService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ExchangeRateUpdateBackgroundService> _logger;
     private readonly NbrbOptions _options;
 
     public ExchangeRateUpdateBackgroundService(
-        IExchangeRateService exchangeRateService,
+        IServiceScopeFactory scopeFactory,
         ILogger<ExchangeRateUpdateBackgroundService> logger,
         IOptions<NbrbOptions> options)
     {
-        _exchangeRateService = exchangeRateService;
+        _scopeFactory = scopeFactory;
         _logger = logger;
         _options = options.Value;
     }
@@ -37,7 +38,11 @@ public sealed class ExchangeRateUpdateBackgroundService : BackgroundService
         {
             try
             {
-                await _exchangeRateService.UpdateRatesAsync(stoppingToken);
+                // IExchangeRateService зарегистрирован как scoped, а hosted service — singleton,
+                // поэтому создаём свой scope на каждый тик.
+                using var scope = _scopeFactory.CreateScope();
+                var exchangeRateService = scope.ServiceProvider.GetRequiredService<IExchangeRateService>();
+                await exchangeRateService.UpdateRatesAsync(stoppingToken);
             }
             catch (Exception ex)
             {

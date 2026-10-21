@@ -88,6 +88,11 @@ namespace CreditCalculator
             builder.Services.AddSignalR();
             builder.Services.AddScoped<IApplicationStatusNotifier, ApplicationStatusNotifier>();
             builder.Services.AddInfrastructure();
+
+            // Реализация Application.Abstractions.IApplicationStatusNotifier
+            // (абстракция из прикладного слоя, нужна ApplicationService).
+            // Используем ту же SignalR-реализацию, что и Api.Services.IApplicationStatusNotifier.
+            builder.Services.AddScoped<CreditCalculator.Application.Abstractions.IApplicationStatusNotifier, CreditCalculator.Api.Services.ApplicationStatusNotifier>();
             builder.Services.AddJwtAuthentication();
             builder.Services.AddAuthRateLimiting();
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
