@@ -1,8 +1,10 @@
 using CreditCalculator.Api.Authentication;
 using CreditCalculator.Api.Contracts;
 using CreditCalculator.Api.Export;
+using CreditCalculator.Api.Services;
 using CreditCalculator.Application.Contracts;
 using CreditCalculator.Application.Services;
+using CreditCalculator.Scoring.Messages.Messages;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,10 +16,12 @@ namespace CreditCalculator.Api.Controllers;
 public sealed class ApplicationsController : ControllerBase
 {
     private readonly IApplicationService _applicationService;
+    private readonly IScoringRequestPublisher _scoringRequestPublisher;
 
-    public ApplicationsController(IApplicationService applicationService)
+    public ApplicationsController(IApplicationService applicationService, IScoringRequestPublisher scoringRequestPublisher)
     {
         _applicationService = applicationService;
+        _scoringRequestPublisher = scoringRequestPublisher;
     }
 
     [HttpPost]
@@ -27,6 +31,24 @@ public sealed class ApplicationsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _applicationService.CreateAsync(User.GetUserId(), request, idempotencyKey, cancellationToken);
+
+        // Публикуем запрос на скоринг в микросервис через RabbitMQ (асинхронно, не блокируя ответ клиенту)
+        var scoringRequest = new ScoringRequest
+        {
+            ApplicationId = result.Application.Id,
+            UserId = User.GetUserId(),
+            Amount = request.Amount,
+            TermMonths = request.TermMonths,
+            MonthlyIncome = 0,
+            ExistingMonthlyPayments = 0,
+            EmploymentMonths = 0,
+            Dependents = 0,
+            Gender = "U",
+            BirthDate = DateTime.UtcNow.AddYears(-30),
+            CreditProductPurpose = "Consumer"
+        };
+        await _scoringRequestPublisher.PublishAsync(scoringRequest, cancellationToken);
+
         return result.WasReplayed
             ? Ok(result.Application)
             : Created($"/api/v1/applications/{result.Application.Id}", result.Application);

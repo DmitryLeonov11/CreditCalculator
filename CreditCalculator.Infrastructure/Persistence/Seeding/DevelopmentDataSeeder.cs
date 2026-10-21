@@ -32,6 +32,7 @@ public sealed class DevelopmentDataSeeder
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
         await SeedCreditProductsAsync(cancellationToken);
+        await SeedExchangeRatesAsync(cancellationToken);
         await SeedEmployeeAsync(cancellationToken);
     }
 
@@ -51,6 +52,7 @@ public sealed class DevelopmentDataSeeder
                 MinTermMonths = 3,
                 MaxTermMonths = 60,
                 BaseRate = 16.5m,
+                RefinancingRateByn = 11.0m,
                 IsActive = true
             },
             new CreditProduct
@@ -63,6 +65,7 @@ public sealed class DevelopmentDataSeeder
                 MinTermMonths = 3,
                 MaxTermMonths = 24,
                 BaseRate = 21m,
+                RefinancingRateByn = 11.0m,
                 IsActive = true
             },
             new CreditProduct
@@ -75,6 +78,7 @@ public sealed class DevelopmentDataSeeder
                 MinTermMonths = 12,
                 MaxTermMonths = 84,
                 BaseRate = 13.9m,
+                RefinancingRateByn = 11.0m,
                 IsActive = true
             },
             new CreditProduct
@@ -87,11 +91,56 @@ public sealed class DevelopmentDataSeeder
                 MinTermMonths = 60,
                 MaxTermMonths = 240,
                 BaseRate = 11.5m,
+                RefinancingRateByn = 11.0m,
                 IsActive = true
             });
 
         await _dbContext.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Добавлены начальные кредитные продукты");
+    }
+
+    private async Task SeedExchangeRatesAsync(CancellationToken cancellationToken)
+    {
+        if (await _dbContext.ExchangeRates.AnyAsync(cancellationToken))
+            return;
+
+        var now = DateTime.UtcNow;
+        _dbContext.ExchangeRates.AddRange(
+            new ExchangeRate
+            {
+                Id = Guid.CreateVersion7(),
+                CurrencyCode = "USD",
+                RateToByn = 3.2700m,
+                UpdatedAt = now,
+                Source = "NBRB"
+            },
+            new ExchangeRate
+            {
+                Id = Guid.CreateVersion7(),
+                CurrencyCode = "EUR",
+                RateToByn = 3.5200m,
+                UpdatedAt = now,
+                Source = "NBRB"
+            },
+            new ExchangeRate
+            {
+                Id = Guid.CreateVersion7(),
+                CurrencyCode = "RUB",
+                RateToByn = 0.0350m,
+                UpdatedAt = now,
+                Source = "NBRB"
+            },
+            new ExchangeRate
+            {
+                Id = Guid.CreateVersion7(),
+                CurrencyCode = "BYN",
+                RateToByn = 1m,
+                UpdatedAt = now,
+                Source = "NBRB"
+            });
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Добавлены начальные курсы валют");
     }
 
     private async Task SeedEmployeeAsync(CancellationToken cancellationToken)

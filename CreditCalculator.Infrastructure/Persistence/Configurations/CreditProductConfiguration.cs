@@ -15,5 +15,6 @@ public sealed class CreditProductConfiguration : IEntityTypeConfiguration<Credit
 
         builder.Property(product => product.BaseRate).HasPrecision(9, 4);
         builder.Property(product => product.IsBelarusianMade).HasDefaultValue(false);
+        builder.Property(product => product.RefinancingRateByn).HasPrecision(9, 4);
     }
 }

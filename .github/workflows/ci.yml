@@ -102,6 +102,6 @@ jobs:
 
       - name: Build and push frontend Docker image
         run: |
-          docker buildx build -f Dockerfile \
+          docker buildx build -f client/Dockerfile \
             -t ghcr.io/dmitryleonov11/credit-calculator-frontend:latest \
             --push ./client

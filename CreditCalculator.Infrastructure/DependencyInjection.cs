@@ -1,14 +1,21 @@
 using CreditCalculator.Application.Abstractions;
 using CreditCalculator.Application.Options;
 using CreditCalculator.Infrastructure.Authentication;
+using CreditCalculator.Infrastructure.Cache;
 using CreditCalculator.Infrastructure.Email;
 using CreditCalculator.Infrastructure.Persistence;
 using CreditCalculator.Infrastructure.Persistence.Seeding;
 using CreditCalculator.Infrastructure.Security;
+using CreditCalculator.Infrastructure.Services;
+using CreditCalculator.Infrastructure.Storage;
+using Amazon.S3;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Hosting;
+using StackExchange.Redis;
 
 namespace CreditCalculator.Infrastructure;
 
@@ -39,6 +46,8 @@ public static class DependencyInjection
                 $"Ключ подписи Jwt:SigningKey не задан или короче {MinSigningKeyLength} символов. Укажите его в User Secrets или в переменной окружения Jwt__SigningKey.")
             .ValidateOnStart();
         services.AddOptions<SeedOptions>().BindConfiguration(SeedOptions.SectionName);
+        services.AddOptions<NbrbOptions>().BindConfiguration(NbrbOptions.SectionName);
+        services.AddOptions<RedisOptions>().BindConfiguration(RedisOptions.SectionName);
 
         // Ключи в БД, а не в файловой системе контейнера: иначе после пересборки образа или на втором
         // экземпляре API выданные ссылки подтверждения email перестают расшифровываться.
@@ -51,6 +60,43 @@ public static class DependencyInjection
         services.AddSingleton<IEmailConfirmationTokenService, DataProtectionEmailConfirmationTokenService>();
         services.AddSingleton<IEmailSender, LoggingEmailSender>();
         services.AddScoped<DevelopmentDataSeeder>();
+
+        // NBRB клиент и сервис курсов валют
+        services.AddHttpClient<NbrbClient>();
+        services.AddScoped<IExchangeRateService, ExchangeRateService>();
+
+        // Redis кэш
+        services.AddSingleton<IConnectionMultiplexer>(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<RedisOptions>>().Value;
+            var config = new ConfigurationOptions
+            {
+                EndPoints = { $"{options.Host}:{options.Port}" },
+                Password = options.Password,
+                AbortOnConnectFail = false,
+                ConnectTimeout = 5000,
+                SyncTimeout = 5000,
+            };
+            return ConnectionMultiplexer.Connect(config);
+        });
+        services.AddScoped<ICacheService, RedisCacheService>();
+
+        // S3 документное хранилище
+        services.AddOptions<S3Options>().BindConfiguration(S3Options.SectionName);
+        services.AddSingleton<IAmazonS3>(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<S3Options>>().Value;
+            var config = new AmazonS3Config
+            {
+                ServiceURL = options.Endpoint,
+                ForcePathStyle = true,
+            };
+            return new AmazonS3Client(options.AccessKey, options.SecretKey, config);
+        });
+        services.AddScoped<IDocumentStorageService, S3DocumentStorageService>();
+
+        // Фоновый сервис периодического обновления курсов
+        services.AddHostedService<ExchangeRateUpdateBackgroundService>();
 
         return services;
     }

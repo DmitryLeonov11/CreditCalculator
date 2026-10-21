@@ -14,4 +14,5 @@ public class CreditProduct
     public decimal BaseRate { get; set; }
     public bool IsBelarusianMade { get; set; }
     public bool IsActive { get; set; }
+    public decimal? RefinancingRateByn { get; set; } // ставка рефинансирования НБРБ на момент последнего обновления
 }

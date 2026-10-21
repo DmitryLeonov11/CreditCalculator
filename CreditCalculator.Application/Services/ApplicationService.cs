@@ -20,6 +20,7 @@ public sealed class ApplicationService : IApplicationService
     private readonly TimeProvider _timeProvider;
     private readonly IScoringService _scoringService;
     private readonly IEmailSender _emailSender;
+    private readonly IApplicationStatusNotifier _statusNotifier;
     private readonly ILogger<ApplicationService> _logger;
 
     public ApplicationService(
@@ -27,12 +28,14 @@ public sealed class ApplicationService : IApplicationService
         TimeProvider timeProvider,
         IScoringService scoringService,
         IEmailSender emailSender,
+        IApplicationStatusNotifier statusNotifier,
         ILogger<ApplicationService> logger)
     {
         _dbContext = dbContext;
         _timeProvider = timeProvider;
         _scoringService = scoringService;
         _emailSender = emailSender;
+        _statusNotifier = statusNotifier;
         _logger = logger;
     }
 
@@ -567,6 +570,19 @@ public sealed class ApplicationService : IApplicationService
             // The status change is already committed; an email failure must not make the client
             // retry a successful decision or hide the committed result.
             _logger.LogWarning(exception, "Could not notify the client about application {ApplicationId} status {Status}", application.Id, application.Status);
+        }
+
+        try
+        {
+            await _statusNotifier.NotifyStatusChangedAsync(
+                application.Id,
+                application.Status.ToString(),
+                null,
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not send SignalR status notification for application {ApplicationId}", application.Id);
         }
     }
 

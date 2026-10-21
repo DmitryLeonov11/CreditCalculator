@@ -16,12 +16,14 @@ public sealed class AppDbContext : DbContext, IAppDbContext, IDataProtectionKeyC
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Profile> Profiles => Set<Profile>();
     public DbSet<CreditProduct> CreditProducts => Set<CreditProduct>();
+    public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
     public DbSet<ApplicationEntity> Applications => Set<ApplicationEntity>();
     public DbSet<ApplicationStatusHistory> ApplicationStatusHistories => Set<ApplicationStatusHistory>();
     public DbSet<ScoringResult> ScoringResults => Set<ScoringResult>();
     public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
     public DbSet<PaymentSchedule> PaymentSchedules => Set<PaymentSchedule>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+    public DbSet<Document> Documents => Set<Document>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);

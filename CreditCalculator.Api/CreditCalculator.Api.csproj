@@ -12,21 +12,33 @@
 
   <ItemGroup>
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.2.0" />
+    <PackageReference Include="KubernetesClient" Version="21.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.24.2-preview.1" />
+    <PackageReference Include="OpenTelemetry.Api" Version="1.20.1" />
+    <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.17.13" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.4.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.4.0-alpha.2">
+      <IncludePrerelease>true</IncludePrerelease>
+    </PackageReference>
     <PackageReference Include="QuestPDF" Version="2026.9.1" />
     <PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="AspNetCore.HealthChecks.UI" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CreditCalculator.Calculations\CreditCalculator.Calculations.csproj" />
     <ProjectReference Include="..\CreditCalculator.Application\CreditCalculator.Application.csproj" />
     <ProjectReference Include="..\CreditCalculator.Infrastructure\CreditCalculator.Infrastructure.csproj" />
+    <ProjectReference Include="..\CreditCalculator.Scoring.Messages\CreditCalculator.Scoring.Messages.csproj" />
   </ItemGroup>
 
 </Project>

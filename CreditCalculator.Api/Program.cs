@@ -3,8 +3,10 @@ using System.Text.Json.Serialization;
 using CreditCalculator.Api.Authentication;
 using CreditCalculator.Api.ErrorHandling;
 using CreditCalculator.Api.Middleware;
+using CreditCalculator.Api.Hubs;
 using CreditCalculator.Api.Options;
 using CreditCalculator.Api.RateLimiting;
+using CreditCalculator.Api.Services;
 using CreditCalculator.Api.Validation;
 using CreditCalculator.Application;
 using CreditCalculator.Application.Scoring;
@@ -17,6 +19,9 @@ using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using QuestPDF.Infrastructure;
 using Serilog;
+using StackExchange.Redis;
+using OpenTelemetry;
+using OpenTelemetry.Metrics;
 
 namespace CreditCalculator
 {
@@ -78,11 +83,21 @@ namespace CreditCalculator
                         && options.BelarusianGoodsPdnThreshold <= 0.50m,
                     "Scoring:MinimumLivingWageByn должен быть больше нуля, а Scoring:BelarusianGoodsPdnThreshold — больше 0,25 и не больше 0,50.")
                 .ValidateOnStart();
+            builder.Services.AddOptions<RabbitMqOptions>(RabbitMqOptions.SectionName).ValidateOnStart();
+            builder.Services.AddScoped<IScoringRequestPublisher, ScoringRequestPublisher>();
+            builder.Services.AddSignalR();
+            builder.Services.AddScoped<IApplicationStatusNotifier, ApplicationStatusNotifier>();
             builder.Services.AddInfrastructure();
             builder.Services.AddJwtAuthentication();
             builder.Services.AddAuthRateLimiting();
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
             builder.Services.AddProblemDetails();
+            builder.Services.AddOpenTelemetry()
+                .WithMetrics(metrics => metrics
+                    .AddPrometheusExporter());
+            builder.Services.AddHealthChecks()
+                .AddDbContextCheck<AppDbContext>("postgresql")
+                .AddRedis("localhost:6379", name: "redis");
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
 
@@ -143,6 +158,9 @@ namespace CreditCalculator
             app.UseRateLimiter();
 
             app.MapControllers();
+            app.MapHub<ApplicationStatusHub>("/hubs/application-status");
+            app.MapHealthChecks("/health");
+            app.MapPrometheusScrapingEndpoint();
 
             await app.RunAsync();
         }

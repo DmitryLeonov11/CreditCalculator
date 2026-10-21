@@ -50,9 +50,24 @@
   <Folder Name="/client/src/pages/">
     <File Path="client/src/pages/.gitkeep" />
   </Folder>
+  <Folder Name="/scoring-messages/">
+    <File Path="CreditCalculator.Scoring.Messages/CreditCalculator.Scoring.Messages.csproj" />
+    <File Path="CreditCalculator.Scoring.Messages/Messages/ScoringRequest.cs" />
+    <File Path="CreditCalculator.Scoring.Messages/RabbitMq/QueueNames.cs" />
+  </Folder>
+  <Folder Name="/scoring-service/">
+    <File Path="CreditCalculator.Scoring.Service/CreditCalculator.Scoring.Service.csproj" />
+    <File Path="CreditCalculator.Scoring.Service/Dockerfile" />
+    <File Path="CreditCalculator.Scoring.Service/Program.cs" />
+    <File Path="CreditCalculator.Scoring.Service/appsettings.json" />
+    <File Path="CreditCalculator.Scoring.Service/Scoring/ScoringEngine.cs" />
+    <File Path="CreditCalculator.Scoring.Service/Consumers/ScoringRequestConsumer.cs" />
+  </Folder>
   <Project Path="CreditCalculator.Api/CreditCalculator.Api.csproj" />
   <Project Path="CreditCalculator.Application/CreditCalculator.Application.csproj" />
   <Project Path="CreditCalculator.Calculations/CreditCalculator.Calculations.csproj" />
   <Project Path="CreditCalculator.Domain/CreditCalculator.Domain.csproj" />
   <Project Path="CreditCalculator.Infrastructure/CreditCalculator.Infrastructure.csproj" />
+  <Project Path="CreditCalculator.Scoring.Messages/CreditCalculator.Scoring.Messages.csproj" />
+  <Project Path="CreditCalculator.Scoring.Service/CreditCalculator.Scoring.Service.csproj" />
 </Solution>
