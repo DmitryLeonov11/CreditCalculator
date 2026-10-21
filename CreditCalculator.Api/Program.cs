@@ -97,9 +97,7 @@ namespace CreditCalculator
             builder.Services.AddAuthRateLimiting();
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
             builder.Services.AddProblemDetails();
-            builder.Services.AddOpenTelemetry()
-                .WithMetrics(metrics => metrics
-                    .AddPrometheusExporter());
+            builder.Services.AddOpenTelemetry();
             builder.Services.AddHealthChecks()
                 .AddDbContextCheck<AppDbContext>("postgresql")
                 .AddRedis("localhost:6379", name: "redis");
@@ -165,7 +163,6 @@ namespace CreditCalculator
             app.MapControllers();
             app.MapHub<ApplicationStatusHub>("/hubs/application-status");
             app.MapHealthChecks("/health");
-            app.MapPrometheusScrapingEndpoint();
 
             await app.RunAsync();
         }

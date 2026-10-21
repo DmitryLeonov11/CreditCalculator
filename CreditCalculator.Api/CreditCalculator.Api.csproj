@@ -23,9 +23,6 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.4.0" />
-    <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.4.0-alpha.2">
-      <IncludePrerelease>true</IncludePrerelease>
-    </PackageReference>
     <PackageReference Include="QuestPDF" Version="2026.9.1" />
     <PackageReference Include="ClosedXML" Version="0.105.1" />
     <PackageReference Include="AspNetCore.HealthChecks.UI" Version="9.0.0" />
