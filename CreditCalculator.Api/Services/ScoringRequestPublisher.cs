@@ -53,7 +53,7 @@ public sealed class ScoringRequestPublisher : IScoringRequestPublisher
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка публикации запроса скоринга для заявки {ApplicationId}", request.ApplicationId);
-            throw;
+            // Не прерываем ответ клиенту, если брокер недоступен
         }
     }
 }

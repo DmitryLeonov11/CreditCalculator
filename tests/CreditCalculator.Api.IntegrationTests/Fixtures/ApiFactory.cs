@@ -1,3 +1,4 @@
+using CreditCalculator.Api.Services;
 using CreditCalculator.Application.Abstractions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -18,6 +19,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:17-alpine").Build();
 
     public CapturingEmailSender EmailSender { get; } = new();
+    public CapturingScoringRequestPublisher ScoringRequestPublisher { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -40,6 +42,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         {
             services.AddSingleton<IEmailSender>(EmailSender);
             services.AddSingleton<ICacheService, InMemoryCacheService>();
+            services.AddSingleton<IScoringRequestPublisher>(ScoringRequestPublisher);
         });
     }
 
