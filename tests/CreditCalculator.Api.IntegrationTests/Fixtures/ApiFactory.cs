@@ -36,7 +36,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             ["Seed:EmployeePassword"] = SeededEmployeePassword
         }));
 
-        builder.ConfigureTestServices(services => services.AddSingleton<IEmailSender>(EmailSender));
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<IEmailSender>(EmailSender);
+            services.AddSingleton<ICacheService, InMemoryCacheService>();
+        });
     }
 
     public Task InitializeAsync() => _database.StartAsync();

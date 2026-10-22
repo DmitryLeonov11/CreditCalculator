@@ -100,7 +100,7 @@ namespace CreditCalculator
             builder.Services.AddOpenTelemetry();
             builder.Services.AddHealthChecks()
                 .AddDbContextCheck<AppDbContext>("postgresql")
-                .AddRedis("localhost:6379", name: "redis");
+                .AddRedis(sp => sp.GetRequiredService<IConnectionMultiplexer>(), name: "redis");
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
 
