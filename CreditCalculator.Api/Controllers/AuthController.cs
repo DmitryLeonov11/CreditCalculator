@@ -29,12 +29,13 @@ public sealed class AuthController : ControllerBase
     {
         // Хост ссылки берём из конфигурации, а не из заголовка Host: иначе подменённый Host
         // увёл бы ссылку с токеном подтверждения на чужой домен.
-        await _authService.RegisterAsync(
-            request,
-            token => _publicUrlOptions.BaseUrl.TrimEnd('/') + Url.Action(nameof(ConfirmEmail), new { token }),
-            cancellationToken);
+        var linkBuilder = (string token) => _publicUrlOptions.BaseUrl.TrimEnd('/') + Url.Action(nameof(ConfirmEmail), new { token });
+        var confirmationLink = await _authService.RegisterAsync(request, linkBuilder, cancellationToken);
 
-        return Accepted();
+        // Ссылка выводится на фронтенд вместо отправки письма
+        if (string.IsNullOrEmpty(confirmationLink))
+            return Accepted();
+        return Accepted(new { confirmationLink });
     }
 
     [HttpGet("confirm-email")]

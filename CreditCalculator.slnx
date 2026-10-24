@@ -63,6 +63,9 @@
     <File Path="CreditCalculator.Scoring.Service/Scoring/ScoringEngine.cs" />
     <File Path="CreditCalculator.Scoring.Service/Consumers/ScoringRequestConsumer.cs" />
   </Folder>
+  <Folder Name="/Элементы решения/">
+    <File Path="docker-compose.yml" />
+  </Folder>
   <Project Path="CreditCalculator.Api/CreditCalculator.Api.csproj" />
   <Project Path="CreditCalculator.Application/CreditCalculator.Application.csproj" />
   <Project Path="CreditCalculator.Calculations/CreditCalculator.Calculations.csproj" />

@@ -45,7 +45,7 @@ public sealed class AuthService : IAuthService
     }
 
     // Ответ одинаков для нового и занятого email, чтобы по регистрации нельзя было узнать, есть ли у адреса аккаунт.
-    public async Task RegisterAsync(
+    public async Task<string> RegisterAsync(
         RegisterRequest request,
         Func<string, string> buildConfirmationLink,
         CancellationToken cancellationToken = default)
@@ -60,9 +60,11 @@ public sealed class AuthService : IAuthService
 
             // Аккаунт не подтверждён — скорее всего, первое письмо потерялось: отправляем ссылку ещё раз.
             if (!existingUser.EmailConfirmed)
+            {
                 await SendConfirmationEmailAsync(existingUser, buildConfirmationLink, cancellationToken);
-
-            return;
+                return buildConfirmationLink(_emailConfirmationTokenService.CreateToken(existingUser.Id));
+            }
+            return string.Empty;
         }
 
         var now = _timeProvider.GetUtcNow();
@@ -85,13 +87,15 @@ public sealed class AuthService : IAuthService
         {
             // Параллельный запрос с тем же email успел вставить пользователя первым и сам отправил письмо.
             if (await _dbContext.Users.AnyAsync(existing => existing.Email == email, cancellationToken))
-                return;
+                return string.Empty;
 
             throw;
         }
 
         await SendConfirmationEmailAsync(user, buildConfirmationLink, cancellationToken);
+        var confirmationLink = buildConfirmationLink(_emailConfirmationTokenService.CreateToken(user.Id));
         _logger.LogInformation("Client account registration completed for user {UserId}", user.Id);
+        return confirmationLink;
     }
 
     public async Task ConfirmEmailAsync(string token, CancellationToken cancellationToken = default)

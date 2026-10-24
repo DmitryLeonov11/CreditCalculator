@@ -30,7 +30,8 @@ public class AuthFlowTests
         var response = await _client.RegisterAsync(email);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("confirmationLink");
         _factory.EmailSender.GetConfirmationLink(email).AbsolutePath.Should().Be("/api/v1/auth/confirm-email");
     }
 
